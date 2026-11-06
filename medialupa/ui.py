@@ -518,6 +518,7 @@ class MainWindow(QMainWindow):
         self.progress_dialog.setMinimumDuration(0)
         self.worker = AIWorker(self.db, rows)
         self.worker.progress.connect(self._ai_progress)
+        self.worker.finished_ai.connect(self._ai_finished)
         self.worker.failed.connect(self._ai_failed)
         self.worker.start()
 
