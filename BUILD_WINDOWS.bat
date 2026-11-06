@@ -15,7 +15,7 @@ python -m PyInstaller --noconfirm --clean --windowed --name MediaLupa ^
   --collect-all PySide6 --collect-all cv2 --collect-all numpy --collect-all PIL ^
   --collect-all torch --collect-all transformers --collect-all sentence_transformers --collect-all tokenizers ^
   --collect-all safetensors --collect-all platformdirs --collect-all pytesseract ^
-  medialupa\__main__.py
+  run_medialupa.py
 if errorlevel 1 (
   echo Build failed. See the error above.
   pause
