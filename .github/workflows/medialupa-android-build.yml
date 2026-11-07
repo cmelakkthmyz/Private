@@ -14,7 +14,7 @@ jobs:
       - name: Extract uploaded MediaLupa source
         run: |
           mkdir android
-          unzip -q android-src.zip -d android
+          python3 -m zipfile -e android-src.zip android
           test -f android/app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
@@ -37,7 +37,7 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Run regression tests
-        if: always()
+        if: success()
         continue-on-error: true
         working-directory: android
         run: gradle --no-daemon :app:testDebugUnitTest
