@@ -1,0 +1,12 @@
+// Independent on-device Poisson predictor. No cloud AI or API key is needed.
+(function(global){
+'use strict';
+const TEAM_NAMES=['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton','Burnley','Chelsea','Crystal Palace','Everton','Fulham','Leeds United','Liverpool','Manchester City','Manchester United','Newcastle United','Nottingham Forest','Sunderland','Tottenham Hotspur','West Ham United','Wolverhampton Wanderers'];
+const baseline=Object.fromEntries(TEAM_NAMES.map(name=>[name,{name,attack:70,defense:70,form:55,played:0}]));
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+function poisson(k,l){if(!Number.isInteger(k)||k<0||!Number.isFinite(l)||l<0)throw Error('Invalid Poisson parameters');let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p}
+function expectedGoals(home,away){const fh=clamp((home.form??55)-(away.form??55),-45,45);const m=1+fh/420;return {home:clamp(1.52*(home.attack??70)/Math.max(30,away.defense??70)*m,.25,4.2),away:clamp(1.26*(away.attack??70)/Math.max(30,home.defense??70)/m,.2,3.6)}}
+function predict(home,away){const xg=expectedGoals(home,away);let p=[0,0,0],over=0,btts=0,total=0;const scores=[];for(let h=0;h<=12;h++)for(let a=0;a<=12;a++){const q=poisson(h,xg.home)*poisson(a,xg.away);p[h>a?0:h===a?1:2]+=q;total+=q;if(h+a>=3)over+=q;if(h&&a)btts+=q;scores.push({h,a,p:q})}p=p.map(v=>v/total);const idx=p.indexOf(Math.max(...p));const score=scores.filter(s=>idx===0?s.h>s.a:idx===1?s.h===s.a:s.h<s.a).sort((a,b)=>b.p-a.p)[0];return {pick:['1','X','2'][idx],score:score.h+':'+score.a,scoreProbability:score.p/total,probabilities:{'1':p[0],X:p[1],'2':p[2]},xg,over25:over/total,btts:btts/total,topScores:scores.sort((a,b)=>b.p-a.p).slice(0,5)}}
+function ratingsFromResults(events){const stats={};for(const ev of events){if(ev.status!=='STATUS_FINAL'||!Number.isFinite(ev.homeScore)||!Number.isFinite(ev.awayScore))continue;for(const [name,goals,against] of [[ev.home,ev.homeScore,ev.awayScore],[ev.away,ev.awayScore,ev.homeScore]]){const s=stats[name]??={n:0,g:0,ga:0,points:0};s.n++;s.g+=goals;s.ga+=against;s.points+=goals>against?3:goals===against?1:0}}const ratings={};for(const [name,s] of Object.entries(stats)){const w=s.n/(s.n+8);ratings[name]={name,attack:clamp(70*(1-w)+w*70*(s.g/s.n)/1.45,40,110),defense:clamp(70*(1-w)+w*70*(1.45/Math.max(.4,s.ga/s.n)),40,110),form:clamp(55*(1-w)+w*(s.points/s.n/3)*100,15,90),played:s.n}}return ratings}
+global.PLModel={TEAM_NAMES,baseline,poisson,expectedGoals,predict,ratingsFromResults};
+})(globalThis);
