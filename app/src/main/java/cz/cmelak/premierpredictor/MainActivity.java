@@ -53,7 +53,7 @@ public final class MainActivity extends Activity {
                 try {
                     json = downloadFixtures();
                 } catch (Exception e) {
-                    json = new JSONObject().put("error", "Načítání ESPN selhalo: " + e.getMessage()).toString();
+                    json = "{\"error\":" + JSONObject.quote("Načítání ESPN selhalo: " + e.getMessage()) + "}";
                 } finally {
                     loading.set(false);
                 }
