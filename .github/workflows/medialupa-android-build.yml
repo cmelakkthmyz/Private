@@ -1,4 +1,4 @@
-name: MediaLupa Android 0.6.1 APK
+name: MediaLupa Android 0.7.0 APK
 on:
   push:
     branches: [medialupa-android-build]
@@ -44,14 +44,12 @@ jobs:
       - name: Assemble installable Android APK
         working-directory: android
         run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Run regression tests
+        working-directory: android
+        run: gradle --no-daemon :app:testDebugUnitTest
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MediaLupa-Android-0.6.1-APK
+          name: MediaLupa-Android-0.7.0-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-      - name: Run regression tests
-        if: success()
-        continue-on-error: true
-        working-directory: android
-        run: gradle --no-daemon :app:testDebugUnitTest
