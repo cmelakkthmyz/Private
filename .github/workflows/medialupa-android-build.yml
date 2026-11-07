@@ -34,6 +34,13 @@ jobs:
         run: |
           echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+      - name: Generate debug signing key for installable APK
+        run: |
+          mkdir -p android/signing
+          keytool -genkeypair -noprompt -keystore android/signing/medialupa-preview.jks \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
       - name: Assemble installable Android APK
         working-directory: android
         run: gradle --no-daemon --stacktrace :app:assembleDebug
