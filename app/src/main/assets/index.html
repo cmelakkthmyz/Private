@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1323">
+<title>Premier League Predictor</title><link rel="stylesheet" href="style.css">
+</head><body>
+<header><div class="wrap"><div class="eyebrow">PREMIER LEAGUE · ANDROID</div>
+<h1>Premier League <span>Predictor</span></h1>
+<p>Aktuální zápasy a odhady 1 / X / 2 z lokálního matematického modelu.</p></div></header>
+<main class="wrap">
+<section class="toolbar"><div><h2>Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
+<div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
+<div class="matches" id="matches"></div>
+<section class="manual"><h2>Vlastní zápas</h2><p>Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
+<div class="controls"><label>Domácí<select id="home"></select></label><label>Hosté<select id="away"></select></label></div>
+<div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
+<label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
+<button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
+<p class="fine">Rozpis a odehrané zápasy: ESPN (přes internet). Odhady počítá aplikace přímo v telefonu a nepoužívá Base44. Nejde o záruku výsledku ani sázkové doporučení.</p>
+</main><script src="model.js"></script><script src="app.js"></script>
+</body></html>
