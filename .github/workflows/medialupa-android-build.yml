@@ -16,6 +16,13 @@ jobs:
           mkdir android
           python3 -m zipfile -e android-src.zip android
           test -f android/app/build.gradle.kts
+      - name: Bundle verified offline MobileFaceNet model
+        run: |
+          mkdir -p android/app/src/main/assets
+          curl --fail --location --retry 3 --connect-timeout 20 \
+            https://raw.githubusercontent.com/Andrew-Hardianto/capacitor-face-recognition-tflite/main/android/src/main/assets/mobile_face_net.tflite \
+            --output android/app/src/main/assets/mobile_face_net.tflite
+          echo 'be4bc7cfc53f7bc336d0f28b1ab92535f618c913a422b683210750f6b5354854  android/app/src/main/assets/mobile_face_net.tflite' | sha256sum -c -
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
