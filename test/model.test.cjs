@@ -1,0 +1,15 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const source=fs.readFileSync('app/src/main/assets/model.js','utf8');
+const ctx=vm.createContext({});
+vm.runInContext(source,ctx);
+const {poisson,predict,expectedGoals,ratingsFromResults,TEAM_NAMES,baseline}=ctx.PLModel;
+test('Poisson mass approaches one',()=>{for(const l of [.2,.7,1.4,2.6,4]){let s=0;for(let k=0;k<=40;k++)s+=poisson(k,l);assert.ok(Math.abs(s-1)<1e-10)}});
+test('probabilities sum to one and pick is maximal',()=>{for(let a=40;a<=110;a+=10)for(let d=40;d<=110;d+=10){const p=predict({attack:a,defense:d,form:60},{attack:d,defense:a,form:50});assert.ok(Math.abs(Object.values(p.probabilities).reduce((x,y)=>x+y,0)-1)<1e-10);assert.equal(p.probabilities[p.pick],Math.max(...Object.values(p.probabilities))) }});
+test('modal score respects 1 X 2',()=>{for(let a=40;a<=110;a+=10)for(let d=40;d<=110;d+=10){const p=predict({attack:a,defense:d,form:60},{attack:d,defense:a,form:50});const [h,v]=p.score.split(':').map(Number);assert.ok(p.pick==='1'?h>v:p.pick==='X'?h===v:h<v)}});
+test('modal score is optimal given outcome',()=>{for(let a=40;a<=110;a+=10)for(let d=40;d<=110;d+=10){const p=predict({attack:a,defense:d,form:60},{attack:d,defense:a,form:50});const [h,v]=p.score.split(':').map(Number);const prob=poisson(h,p.xg.home)*poisson(v,p.xg.away);for(let x=0;x<=12;x++)for(let y=0;y<=12;y++){if((p.pick==='1'&&x<=y)||(p.pick==='X'&&x!==y)||(p.pick==='2'&&x>=y))continue;assert.ok(prob+1e-14>=poisson(x,p.xg.home)*poisson(y,p.xg.away))}}});
+test('higher attack increases xG',()=>{assert.ok(expectedGoals({attack:100,defense:70},{attack:70,defense:70}).home>expectedGoals({attack:50,defense:70},{attack:70,defense:70}).home)});
+test('historical stats ignore incomplete fixtures',()=>{const r=ratingsFromResults([{status:'STATUS_FINAL',home:'Arsenal',away:'Chelsea',homeScore:2,awayScore:0},{status:'STATUS_SCHEDULED',home:'Arsenal',away:'Chelsea',homeScore:9,awayScore:9}]);assert.equal(r.Arsenal.played,1);assert.ok(r.Arsenal.attack>r.Chelsea.attack)});
+test('every team produces finite prediction',()=>{for(const h of TEAM_NAMES)for(const a of TEAM_NAMES){const p=predict(baseline[h],baseline[a]);assert.ok(Number.isFinite(p.xg.home)&&p.score.includes(':'))}});
