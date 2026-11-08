@@ -15,11 +15,40 @@
 </nav>
 <div class="coverage" id="coverage"></div>
 <nav class="quick-jump" aria-label="Rychlé menu">
- <a href="#paper-lab"><span>Tiket nanečisto</span></a>
- <a href="#auto-tickets"><span>Kurzy</span></a>
+ <a href="#model-tickets"><span>AI tikety</span></a>
+ <a href="#paper-lab"><span>Historie</span></a>
  <a href="#games"><span>Zápasy</span></a>
  <a href="#own-match"><span>Vlastní zápas</span></a>
 </nav>
+<section id="model-tickets" class="ticket-studio model-first" aria-labelledby="model-tickets-heading">
+ <div class="eyebrow">HLAVNÍ FUNKCE · MODELOVÉ PREDIKCE</div>
+ <div class="studio-head"><div>
+ <h2 id="model-tickets-heading">AI návrhář tiketů</h2>
+ <p>Podle formy, výsledků a dalších dostupných statistik vyhodnotí pravděpodobnosti 1 / X / 2. Sám porovná SOLO, AKU, KOMBI a MAXIKOMBI – i bez kurzů sázkovky.</p>
+ </div><span class="studio-chip">1–4 zápasy</span></div>
+ <div class="model-ticket-controls">
+  <label>Typ tiketu
+   <select id="model-ticket-type">
+    <option value="auto">Vybrat automaticky</option>
+    <option value="solo">SOLO · 1 zápas</option>
+    <option value="ako">AKU · vše musí vyjít</option>
+    <option value="kombi">KOMBI · systém</option>
+    <option value="maxikombi">MAXIKOMBI · rozšířený systém</option>
+   </select>
+  </label>
+  <label>Maximální počet zápasů
+   <select id="model-ticket-count">
+    <option value="2">2 zápasy</option>
+    <option value="3" selected>3 zápasy</option>
+    <option value="4">4 zápasy</option>
+   </select>
+  </label>
+ </div>
+ <button id="model-ticket-refresh" type="button" class="wide scan-button">Znovu spočítat analýzy a tikety</button>
+ <p id="model-ticket-status" class="odds-status" role="status" aria-live="polite">Načítám budoucí zápasy a sestavuji pravděpodobnosti…</p>
+ <div id="model-ticket-results" aria-live="polite"></div>
+ <p class="source-notice">Jde o modelové návrhy, nikoli automaticky vsazené tikety. Bez nezávisle ověřených kurzů se neuvádí finanční výhodnost ani smyšlená výplata. Hokejová remíza znamená stav po 60 minutách.</p>
+</section>
 <section id="paper-lab" class="paper-lab" aria-labelledby="paper-title">
  <div class="eyebrow">BEZ REÁLNÝCH PENĚZ</div>
  <h2 id="paper-title">Tiket nanečisto · průběžné učení</h2>
@@ -39,8 +68,8 @@
 </section>
 <section id="auto-tickets" class="ticket-studio" aria-labelledby="ticket-heading">
  <div class="studio-head"><div>
-  <div class="eyebrow">AUTOMATICKÁ ANALÝZA KURZŮ</div>
-  <h2 id="ticket-heading">Hledač kombinací</h2>
+  <div class="eyebrow">DOPLŇKOVÁ FUNKCE · KURZOVÉ POROVNÁNÍ</div>
+  <h2 id="ticket-heading">Porovnání s kurzy</h2>
   <p>Bez ručního opisování kurzů: automaticky porovnám nabídku Chance nebo Tipsportu s predikcemi. Pro průběžné kurzy Tipsportu a Chance je nutný vlastní API klíč PulseScore a tarif odpovídající frekvenci aktualizací.</p>
  </div><span class="studio-chip">2–3 zápasy</span></div>
  <div class="odds-provider-settings">
