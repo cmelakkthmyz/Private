@@ -76,6 +76,42 @@ public final class MainActivity extends Activity {
             });
         }
 
+        @JavascriptInterface public void loadPaperHockeyResults(String requestedDates) {
+            executor.execute(() -> {
+                JSONArray results=new JSONArray(),unavailable=new JSONArray();
+                try {
+                    JSONArray days=new JSONArray(requestedDates);
+                    if(days.length()>8)throw new IllegalArgumentException("Příliš mnoho datumů");
+                    HashSet<String> seen=new HashSet<>();
+                    LocalDate now=LocalDate.now(ZoneId.of("Europe/Prague"));
+                    for(int i=0;i<days.length();i++){
+                        String day=days.optString(i,"");
+                        if(!day.matches("\\d{4}-\\d{2}-\\d{2}")||!seen.add(day))continue;
+                        LocalDate target;
+                        try{target=LocalDate.parse(day);}catch(Exception ignored){continue;}
+                        if(!target.isBefore(now)||target.isBefore(now.minusDays(12)))continue;
+                        try{
+                            String json=readRemoteFast(HockeyScoreboard.URL_PREFIX+day+".json");
+                            JSONObject parsed=HockeyScoreboard.parse(json,day,
+                                java.time.Instant.now().toString());
+                            JSONArray games=parsed.getJSONArray("events");
+                            for(int k=0;k<games.length();k++)results.put(games.getJSONObject(k));
+                        }catch(Exception e){unavailable.put(day);}
+                    }
+                }catch(Exception e){unavailable.put("Neplatný požadavek výsledků");}
+                JSONObject response=new JSONObject();
+                try{
+                    response.put("results",results).put("unavailableDates",unavailable);
+                    response.put("checkedAt",java.time.Instant.now().toString());
+                }catch(Exception ignored){}
+                final String payload=response.toString();
+                runOnUiThread(()->{
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receivePaperHockeyResults("+JSONObject.quote(payload)+");",null);
+                });
+            });
+        }
+
         @JavascriptInterface public void loadOdds() {
             executor.execute(() -> {
                 String payload;
