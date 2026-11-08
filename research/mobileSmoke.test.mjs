@@ -61,7 +61,7 @@ test('home page starts with Premier League and requests its actual fixtures',()=
  assert.ok(t.controls.matches.innerHTML.includes('Arsenal'));
  assert.ok(t.controls.matches.innerHTML.includes('Liverpool'));
  assert.ok(t.controls.matches.innerHTML.includes('Tip 1 / X / 2'));
- assert.ok(t.controls['auto-results'].innerHTML.includes('nejsou ověřené'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('nejsou dostupné'));
  assert.equal(t.calls.includes('odds'),true);
 
  const state=JSON.parse(t.saved.get('premier-intelligence-online-v1:pl-football'));
@@ -272,7 +272,7 @@ test('screenshot regression: 15 bookmaker rows, 2 verified fixtures, remizy mode
  assert.ok(t.controls['auto-results'].innerHTML.includes('Uložit tento tiket nanečisto'));
  assert.ok(t.controls['auto-results'].innerHTML.includes('Arsenal'));
  assert.ok(t.controls['auto-results'].innerHTML.includes('Chelsea'));
- assert.ok(t.controls['auto-results'].innerHTML.includes('Nepro'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('neprošel'));
  assert.ok(t.controls['auto-results'].innerHTML.includes('spárováno'));
 });
 test('three-leg longshot with only two verified matches explains why it cannot be created',()=>{
