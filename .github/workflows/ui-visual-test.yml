@@ -1,7 +1,7 @@
 name: Sport Predictor Android Visual UI Test
 on:
   push:
-    branches: [premier-league-model-v2]
+    branches: [premier-league-model-v2, 'codex/sport-predictor-fresh-odds']
   pull_request:
     branches: [premier-league-android]
   workflow_dispatch:

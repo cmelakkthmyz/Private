@@ -60,7 +60,7 @@ test('no tip can be retroactively placed after kickoff',()=>{
 });
 test('stale odds cannot create an apparently verified ticket',()=>{
  const {proposal}=create(),ledger=emptyPaperLedger();
- assert.throws(()=>placePaperTicket(ledger,proposal,{createdAt:new Date(base+15*3600000).toISOString()}),/před výkopem|současný/);
+ assert.throws(()=>placePaperTicket(ledger,proposal,{createdAt:new Date(base+3*60_000).toISOString()}),/současný/);
 });
 test('no score before kick off or half time may settle paper result',()=>{
  const {ledger}=create();

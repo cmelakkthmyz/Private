@@ -15,7 +15,8 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const port=server.address().port;
-const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const browser=await chromium.launch({headless:true,
+ executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox']});
 const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,
  isMobile:true,hasTouch:true});
 const page=await ctx.newPage();
@@ -57,9 +58,9 @@ await page.addInitScript(()=>{
     else window.receiveMatches(JSON.stringify({events:model[league]||[]}),league);
    });
   },
-  loadOdds(){window.__oddsRequests=(window.__oddsRequests||0)+1;
+  loadOdds(requestId){window.__oddsRequests=(window.__oddsRequests||0)+1;
    safeCall(()=>window.receiveOdds(JSON.stringify({
-    offers,fetchedAt:new Date().toISOString(),bookmaker:'Tipsport'}),'tipsport'));},
+    offers,fetchedAt:new Date().toISOString(),bookmaker:'Tipsport'}),'tipsport',requestId));},
   chanceKeyStatus(){
    safeCall(()=>window.receiveChanceKeyStatus(hasChanceApiKey,
     hasChanceApiKey?'Testovací šifrovaný klíč přítomen.':'Chybí PulseScore API klíč.'));
@@ -73,12 +74,12 @@ await page.addInitScript(()=>{
    hasChanceApiKey=false;
    safeCall(()=>window.receiveChanceKeyStatus(false,'Klíč odebrán.'));
   },
-  loadChanceOdds(){
+  loadChanceOdds(requestId){
    window.__chanceRequests=(window.__chanceRequests||0)+1;
    safeCall(()=>window.receiveOdds(JSON.stringify(
     hasChanceApiKey?{bookmaker:'Chance',fetchedAt:new Date().toISOString(),
      offers:offers.map(x=>({...x,bookmaker:'Chance',sourceUrl:'https://www.chance.cz/kurzy'}))}:
-     {error:'Chybí API klíč PulseScore.'}), 'chance'));
+     {error:'Chybí API klíč PulseScore.'}), 'chance',requestId));
   },
   loadPaperHockeyResults(dates){
    window.__hockeyCheckRequests=(window.__hockeyCheckRequests||0)+1;

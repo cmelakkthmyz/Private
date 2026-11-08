@@ -3,11 +3,13 @@ android {
     namespace 'cz.cmelak.premierpredictor'
     compileSdk 35
     defaultConfig {
-        applicationId 'cz.cmelak.sportpredictor.chance'
+        // Each CI debug build has a new signing key. A distinct application ID
+        // lets this test build install beside an earlier debug version.
+        applicationId 'cz.cmelak.sportpredictor.chance321'
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName '3.2.0'
+        versionCode 2
+        versionName '3.2.1'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

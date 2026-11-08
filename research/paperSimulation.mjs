@@ -5,6 +5,9 @@ import {buildAutoTickets,evaluateOffer,normClub} from './autoOddsScanner.mjs';
 
 const OUTCOMES=['1','X','2'];
 const DAY=86400000;
+// A download time is not a guarantee from the bookmaker, but an old snapshot
+// must never be silently reused as a current price.
+export const MAX_QUOTE_AGE_MS=2*60_000;
 const validDate=s=>Number.isFinite(Date.parse(s||''));
 const round=(n,d=4)=>Number(n.toFixed(d));
 const outcome=(h,a)=>h>a?'1':h===a?'X':'2';
@@ -74,8 +77,8 @@ export function placePaperTicket(ledger,proposal,{createdAt=new Date().toISOStri
    !validDate(l.kickoff)||Date.parse(l.kickoff)<=when+60_000)
    throw Error('Zápas není doložen platným kurzem před výkopem.');
   const retrieved=l.offeredAt?Date.parse(l.offeredAt):NaN;
-  if(!Number.isFinite(retrieved)||retrieved>when+60_000||
-   when-retrieved>14*3600_000)throw Error('Kurz není současný. Obnov nabídku.');
+  if(!Number.isFinite(retrieved)||retrieved>when+5_000||
+   when-retrieved>MAX_QUOTE_AGE_MS)throw Error('Kurz není současný. Obnov nabídku.');
   if(!l.sourceUrl||!/^https:\/\//.test(l.sourceUrl))
    throw Error('Není doložen veřejný zdroj kurzu.');
   return Object.seal({matchId:String(l.matchId),league:l.league,home:l.home,away:l.away,
