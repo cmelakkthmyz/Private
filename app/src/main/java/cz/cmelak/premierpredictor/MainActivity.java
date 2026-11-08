@@ -55,9 +55,9 @@ public final class MainActivity extends Activity {
                 String payload;
                 try {
                     String html = readRemote(PublicOdds.SOURCE_URL, "text/html");
-                    payload = "{\"error\":" + JSONObject.quote("Automatické načítání kurzů: " + e.getMessage()) + "}";
+                    payload = PublicOdds.fromHtml(html, System.currentTimeMillis()).toString();
                 } catch (Exception e) {
-                    payload = "{\\"error\\":" + JSONObject.quote("Automatické načítání kurzů: " + e.getMessage()) + "}";
+                    payload = "{\"error\":" + JSONObject.quote("Automatické načítání kurzů: " + e.getMessage()) + "}";
                 }
                 final String result = payload;
                 runOnUiThread(() -> {
