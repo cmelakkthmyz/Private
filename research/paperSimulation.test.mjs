@@ -138,3 +138,29 @@ test('no ambiguous duplicate provider results can settle',()=>{
 test('paper candidate cannot be made from unpaired or absent offers',()=>{
  assert.equal(proposePaperTicket([],{now:base}),null);
 });
+
+
+test('Czech finished match settles a bookmaker paper bet despite different CC0 result id',()=>{
+ const czKickoff=new Date(base+6*3600000).toISOString();
+ const czFixture={id:'cz_espn_odds_117',league:'cz',home:'Viktoria Plzeň',
+  away:'Sparta Praha',kickoff:czKickoff,status:'scheduled',modelVerified:false,
+  probabilities:{'1':.46,X:.31,'2':.23}};
+ const czOffer={id:'book-117',league:'cz',home:'Plzeň',away:'Sparta Praha',kickoff:czKickoff,
+  odds:{'1':2.45,X:3.20,'2':3.45},bookmaker:'Tipsport',
+  sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html',fetchedAt:offeredAt};
+ const linked=matchOffer(czOffer,[czFixture],base);
+ assert.ok(linked,'Czech aliases must join bookmaker quote to actual fixture');
+ const paper=proposePaperTicket([linked,matches[0]],{now:base,stake:20});
+ const ledger=emptyPaperLedger();
+ placePaperTicket(ledger,paper,{createdAt:offeredAt});
+ const czLeg=ledger.tickets[0].legs.find(l=>l.league==='cz');
+ assert.ok(czLeg);
+ const result={matchId:'cz_espn_cc0_2026-27_122',league:'cz',home:'Viktoria Plzeň',
+  away:'Sparta Praha',kickoff:'2026-11-08T11:00:00Z',status:'finished',
+  homeScore:2,awayScore:1,market:'1X2_90_MINUTES',
+  source:'OpenFootball CC0',observedAt:new Date(base+12*3600000).toISOString()};
+ const graded=settlePaperTickets(ledger,[result],{asOf:new Date(base+13*3600000).toISOString()});
+ assert.equal(graded.newlyVerifiedLegs.length,1);
+ assert.equal(czLeg.result.actual,'1');
+ assert.equal(czLeg.result.source,'OpenFootball CC0');
+});
