@@ -29,6 +29,8 @@ jobs:
             ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
             node research/buildMobileArchive.mjs
           fi
+      - name: Test actual Android WebView app assets
+        run: node --test research/mobileSmoke.test.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
