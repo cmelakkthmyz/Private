@@ -56,6 +56,6 @@ test('can compare systematic stake across all rows without treating one win as n
  const sys=out.alternatives.find(x=>x.type==='maxikombi'&&x.legCount===3);
  assert.equal(sys.lineCount,4);
  assert.equal(sys.stakePerRow,7.5);
- assert.ok(sys.chanceAtLeastOne>=.648);
+ assert.ok(Math.abs(sys.chanceAtLeastOne-.648)<1e-10);
  assert.ok(sys.chanceOfProfit<=sys.chanceAtLeastOne);
 });
