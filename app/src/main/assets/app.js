@@ -18,7 +18,7 @@ function scoreForSelectedPick(xgHome,xgAway,pick){
   return score;
 }
 
-const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds;
+const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds,PAPER=globalThis.PaperBet;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
 const EN_ARCHIVE=globalThis.ENG_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{complete:0,requested:21}};
 const VALIDATED=globalThis.V3_VALIDATION||{production:{advancedHistory:false,venueWeight:0,shotsWeight:0}};
@@ -52,6 +52,19 @@ let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
 let livePlContext=null,livePlTimestamp=null,backgroundErrors={};
 const candidatesByLeague={pl:[],cz:[],hockey:[]};
+let paperLedger=loadPaperLedger(),paperMatched=[],paperNote='';
+const PAPER_KEY='sport-predictor-paper-v1';
+function loadPaperLedger(){
+ try{
+  const parsed=JSON.parse(localStorage.getItem('sport-predictor-paper-v1')||'null');
+  if(parsed){PAPER.checkPaperLedger(parsed);return parsed;}
+ }catch(e){}
+ return PAPER.emptyPaperLedger();
+}
+function savePaperLedger(){
+ try{localStorage.setItem('sport-predictor-paper-v1',JSON.stringify(paperLedger));}
+ catch(e){paperNote='Uložení simulace selhalo; zkontroluj volné místo v telefonu.';}
+}
 const canonical=name=>ALIASES[name]||String(name||'').replace(/ FC$/,'').trim();
 function acceptLiveContext(raw){
  const ctx=raw?.context;
@@ -69,16 +82,19 @@ function fplFresh(){
  return Number.isFinite(at)&&at<=Date.now()+120000&&Date.now()-at<72*3600000;
 }
 const storeKey=league=>'premier-intelligence-online-v1:'+LEAGUES[league].namespace;
-function readState(){
- const key=storeKey(current),fallback=MOD.newLearningState(LEAGUES[current].namespace);
+function readLeagueState(league){
+ const key=storeKey(league),fallback=MOD.newLearningState(LEAGUES[league].namespace);
  try{
   const saved=JSON.parse(localStorage.getItem(key)||'null');
   return saved?.version===1&&saved.competition===fallback.competition&&Array.isArray(saved.events)?saved:fallback;
  }catch{return fallback}
 }
-function saveState(state){
- try{localStorage.setItem(storeKey(current),JSON.stringify(state));}catch(e){}
+function readState(){return readLeagueState(current);}
+function saveLeagueState(league,state){
+ try{localStorage.setItem(storeKey(league),JSON.stringify(state));}
+ catch(e){paperNote='Uložení průběžného učení se nezdařilo.';}
 }
+function saveState(state){saveLeagueState(current,state);}
 function scoreCard(home,away,forecast,meta){
  const feat=forecast.features||{},parts=[];
  if(Number.isFinite(feat.homeElo)&&Number.isFinite(feat.awayElo))
@@ -216,6 +232,149 @@ function futureForecast(match,all,state){
   explanation:existing?'Původní předzápasový tip z '+new Date(existing.predictedAt).toLocaleString('cs-CZ')+'.':'Lokální ensemble: Poisson, Elo a váhy upravované podle minulých chyb.'};
 }
 
+
+
+function pageDateInPrague(value){
+ return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Prague',year:'numeric',
+  month:'2-digit',day:'2-digit'}).format(new Date(value));
+}
+function renderPaper(){
+ const summary=PAPER.paperSummary(paperLedger);
+ $('paper-pending').textContent=String(summary.pending);
+ $('paper-completed').textContent=String(summary.settled);
+ $('paper-profit').textContent=(summary.net>0?'+':'')+summary.net.toFixed(0)+' Kč';
+ $('paper-profit').className=summary.net<0?'paper-negative':summary.net>0?'paper-positive':'';
+ const matched=paperMatched.length;
+ const existing=paperLedger.tickets.some(t=>t.status==='pending');
+ $('paper-status').textContent=paperNote||(matched>=2?
+   'Ověřená aktuální nabídka obsahuje '+matched+' spárovaných zápasů. Lze uložit nový testovací tiket.':
+   'Nyní není dostatek shodných živých kurzů a zápasů. Nový tiket zatím nelze založit.')+
+   (existing?' · Zbylé simulace se ověřují při načtení skutečných výsledků.':'');
+ const button=$('paper-create');
+ button.disabled=matched<2;
+ const tickets=paperLedger.tickets.slice(0,12);
+ $('paper-history').innerHTML=tickets.length?tickets.map(ticket=>{
+  const result=ticket.status==='won'?'Výherní':ticket.status==='lost'?'Prohraný':'Čeká na výsledky';
+  const profit=ticket.net===null?'Nevyhodnoceno':(ticket.net>0?'+':'')+ticket.net.toFixed(0)+' Kč';
+  const cls=ticket.status==='won'?'paper-win':ticket.status==='lost'?'paper-loss':'paper-pending';
+  return '<article class="paper-ticket '+cls+'"><div class="paper-ticket-top">'+
+   '<strong>'+escapeText(result)+'</strong><span>'+escapeText(new Date(ticket.createdAt)
+     .toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span></div>'+
+   '<div class="paper-ticket-meta">Nanečisto '+ticket.stake.toFixed(0)+' Kč · kurz '+ticket.odds.toFixed(2)+
+   ' · odhad šance '+pct(ticket.modelProbability)+
+   (ticket.experimental?' · EXPERIMENT – bez doložené výhody':'')+'</div>'+
+   ticket.legs.map(leg=>{
+    const state=leg.status==='won'?'✓':leg.status==='lost'?'×':'…';
+    const score=leg.result?' · '+leg.result.homeScore+':'+leg.result.awayScore:'';
+    return '<div class="paper-ticket-leg"><span>'+escapeText(leg.home)+' – '+
+      escapeText(leg.away)+'</span><strong>'+escapeText(leg.pick)+' @ '+Number(leg.odds).toFixed(2)+
+      '</strong><small>'+state+escapeText(score)+'</small></div>';
+   }).join('')+
+   '<div class="paper-ticket-bottom"><span>Modelový výsledek</span><strong>'+
+     escapeText(profit)+'</strong></div></article>';
+ }).join(''):'<p class="paper-empty">Zatím žádný simulovaný tiket. Po načtení skutečných kurzů zkus první test.</p>';
+}
+function createPaperFromLive(){
+ try{
+  const now=Date.now();
+  const proposed=PAPER.proposePaperTicket(paperMatched,{now,stake:ticketStake,profile:ticketProfile});
+  if(!proposed)throw Error('Není dost ověřených samostatných zápasů s čerstvými kurzy.');
+  const saved=PAPER.placePaperTicket(paperLedger,proposed,{
+   createdAt:new Date(now).toISOString(),source:'Veřejná nabídka Tipsport / SazkyWeb.cz'});
+  if(saved.saved){
+   savePaperLedger();
+   paperNote='Tiket nanečisto byl uložen. '+(proposed.experimental?
+    'Jde o experiment bez potvrzené matematické výhody.':
+    'Model navrhl variantu; výsledek není zaručen.');
+  }else paperNote=saved.reason||'Tiket už v archivu existuje.';
+ }catch(e){paperNote=e.message||'Simulace nyní není dostupná.';}
+ renderPaper();
+}
+function absorbVerifiedOutcomes(results){
+ if(!Array.isArray(results)||!results.length)return 0;
+ const asOf=new Date().toISOString();
+ const checked=PAPER.settlePaperTickets(paperLedger,results,{asOf});
+ if(checked.newlySettled.length||checked.newlyVerifiedLegs.length)savePaperLedger();
+ const groups=new Map();
+ for(const leg of checked.newlyVerifiedLegs){
+  if(!groups.has(leg.league))groups.set(leg.league,[]);
+  groups.get(leg.league).push(leg);
+ }
+ let learningUpdates=0;
+ for(const [league,legs] of groups){
+  const state=readLeagueState(league);
+  for(const leg of legs){
+   try{
+    const done=MOD.settleResult(state,{
+     id:leg.matchId,home_score:leg.homeScore,away_score:leg.awayScore,
+     settledAt:asOf
+    });
+    if(done)learningUpdates++;
+  }catch(e){}
+  }
+  saveLeagueState(league,state);
+ }
+ if(checked.newlySettled.length||checked.newlyVerifiedLegs.length)
+  paperNote='Ověřeno '+checked.newlyVerifiedLegs.length+' výsledků, ukončeno '+
+    checked.newlySettled.length+' tiketů. '+learningUpdates+
+    ' nových výsledků zapracováno do průběžného modelu.';
+ renderPaper();
+ return checked.newlyVerifiedLegs.length;
+}
+function officialFootballResults(league,events){
+ const valid=[];
+ for(const e of events||[]){
+  if(!e?.status?.type?.completed)continue;
+  const pair=e.competitions?.[0]?.competitors||[];
+  const home=pair.find(x=>x.homeAway==='home'),away=pair.find(x=>x.homeAway==='away');
+  if(!home||!away)continue;
+  // Do not allow Number(null) => 0 to fabricate a final score.
+  const hs=home.score,as=away.score;
+  if(hs===null||hs===undefined||as===null||as===undefined)continue;
+  const h=Number(hs),a=Number(as);
+  if(!Number.isInteger(h)||!Number.isInteger(a)||h<0||a<0||h>30||a>30)continue;
+  const kickoff=e.date;
+  if(!Number.isFinite(Date.parse(kickoff)))continue;
+  valid.push({matchId:league+'_espn_'+String(e.id),league,
+   home:canonical(home.team?.displayName),away:canonical(away.team?.displayName),
+   kickoff,status:'finished',homeScore:h,awayScore:a,market:'1X2_90_MINUTES',
+   source:league==='pl'?'FPL / ESPN official fixtures':'ESPN Czech football',
+   observedAt:new Date().toISOString()});
+ }
+ return valid;
+}
+function requestHockeyPaperResults(){
+ if(!globalThis.AndroidPredictor?.loadPaperHockeyResults)return;
+ const days=new Set(),now=Date.now(),today=pageDateInPrague(now);
+ for(const ticket of paperLedger.tickets){
+  for(const leg of ticket.legs){
+   if(leg.league!=='hockey'||leg.status!=='pending')continue;
+   const game=Date.parse(leg.kickoff);
+   if(!Number.isFinite(game)||now-game<2.5*3600_000||now-game>12*86400000)continue;
+   const day=pageDateInPrague(game);
+   if(day<today)days.add(day);
+  }
+ }
+ if(days.size)globalThis.AndroidPredictor.loadPaperHockeyResults(JSON.stringify([...days].sort().slice(-8)));
+}
+globalThis.receivePaperHockeyResults=function(raw){
+ try{
+  const data=JSON.parse(raw);
+  const grades=Array.isArray(data.results)?data.results:[];
+  const n=absorbVerifiedOutcomes(grades);
+  if(!n&&paperLedger.tickets.some(t=>t.status==='pending'))
+   paperNote=(data.unavailableDates?.length?
+    'Hokejový zdroj zatím nemá ověřené výsledky pro '+data.unavailableDates.join(', ')+'.':
+    'Hokejové výsledky se ověří po skončení utkání.');
+ }catch(e){paperNote='Vyhodnocení hokeje: '+(e.message||'zdroj nedostupný');}
+ renderPaper();
+};
+function checkPaperResults(){
+ paperNote='Kontroluji odehrané zápasy a aktuální výsledky…';
+ renderPaper();
+ if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
+ requestHockeyPaperResults();
+}
 
 function renderOdds(){
  const total=bookmakerOffers.length;
