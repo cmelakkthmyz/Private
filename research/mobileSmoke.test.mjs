@@ -13,6 +13,7 @@ const makeDom=()=>{
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
   'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
+  'model-ticket-stake',
   'profile-balanced','profile-longshot','profile-draws',
   'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
   'paper-pending','paper-completed','paper-profit','paper-status',
@@ -398,4 +399,20 @@ test('switching to MAXIKOMBI shows all rows while still requiring no odds API',(
  assert.ok(html.includes('MAXIKOMBI 3'),html);
  assert.ok(html.includes('4 řádků'),html);
  assert.ok(html.includes('A + B')&&html.includes('A + C')&&html.includes('B + C'),html);
+});
+
+test('main model ticket stake selector updates every ticket line allocation',()=>{
+ const t=makeDom(),d=t.upcoming;
+ const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((names,i)=>{
+  const [home,away]=names.split('|');
+  return {...event(home,away,new Date(Date.parse(d)+i*3600000).toISOString()),id:'sim'+i};
+ });
+ t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.controls['model-ticket-type'].value='maxikombi';
+ t.controls['model-ticket-type'].listeners.change();
+ t.controls['model-ticket-stake'].value='50';
+ t.controls['model-ticket-stake'].listeners.change();
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('4 × 12.50 Kč = 50.00 Kč'),html);
+ assert.equal(t.controls['stake-50'].attributes['aria-pressed'],'true');
 });
