@@ -379,6 +379,17 @@ function checkPaperResults(){
  requestHockeyPaperResults();
 }
 
+function loadedOddsTable(){
+ const rows=bookmakerOffers.filter(o=>Date.parse(o.kickoff)>Date.now()).slice(0,35);
+ if(!rows.length)return '';
+ const body=rows.map(o=>'<tr><td>'+escapeText(o.home)+' – '+escapeText(o.away)+
+ '</td><td>'+new Date(o.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
+ '</td><td>'+['1','X','2'].map(k=>Number(o.odds[k]).toFixed(2)).join(' / ')+'</td></tr>').join('');
+ return '<details class="match-diagnostics" open><summary>Všechny dostupné načtené nabídky ('+bookmakerOffers.length+')</summary>'+
+ '<p>Kurzy slouží k informaci; bez nezávislého ověření programu a statistických dat se z nich automaticky nevytvoří tiket. '+
+ (oddsProvider==='tipsport'?'Tento veřejný zdroj se aktualizuje jen ráno.':'Zdroj: nezávislé rozhraní PulseScore.')+
+ '</p><div style="overflow-x:auto"><table><thead><tr><th>Zápas</th><th>Začátek</th><th>1 / X / 2</th></tr></thead><tbody>'+body+'</tbody></table></div></details>';
+}
 function renderOdds(){
  const total=bookmakerOffers.length;
  const fresh=Boolean(oddsReceivedAt && Date.now()-Date.parse(oddsReceivedAt)<14*3600000);
@@ -434,7 +445,7 @@ function renderOdds(){
   $('auto-results').innerHTML=introduction+
    '<div class="no-edges"><strong>Vhodná kombinace zatím není dostupná.</strong><p>'+
    escapeText(specific)+
-   'Nepoužívám smyšlené zápasy ani neplatné kurzy. Zkus jiný režim nebo obnov nabídku.</p></div>'+details;
+   'Nepoužívám smyšlené zápasy ani neplatné kurzy. Zkus jiný režim nebo obnov nabídku.</p></div>'+details+loadedOddsTable();
   return;
  }
  const heading=isExperimental?
@@ -469,7 +480,7 @@ function renderOdds(){
    '<button class="ticket-paper-action" type="button" data-paper-action="save">Uložit tento tiket nanečisto</button>'+
    '</article>';
  }).join('');
- $('auto-results').innerHTML=introduction+heading+cards+details;
+ $('auto-results').innerHTML=introduction+heading+cards+details+loadedOddsTable();
  for(const action of $('auto-results').querySelectorAll('[data-paper-action="save"]')){
   action.addEventListener('click',createPaperFromLive);
  }
