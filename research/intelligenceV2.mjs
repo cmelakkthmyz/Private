@@ -1,3 +1,4 @@
+import {assessMatchPriority} from './matchPriority.mjs';
 // Premier League Intelligence V2 — pure, deterministic, pre-match prediction engine.
 // Uses only events strictly before the forecast day; never current/final fixture statistics.
 // The model is deliberately auditable. Extra information is additive only when present.
@@ -174,6 +175,15 @@ export function predictIntelligence(fixture,matchList=[],context={}){
   const cfg=context.config||{};
   const states=buildPrematchStates(matchList,fixture,cfg);
   const goals=goalRates(states,fixture,context.teams||[],context.players||[],context.articles||[],cfg);
+  // Distinguish a high-stakes league game from *verified* fixture congestion and
+  // actual rotation. A future cup game alone cannot prove a team plans to lose.
+  const priority=assessMatchPriority(fixture,context.schedule||matchList,context);
+  const priorityWeight=clamp(num(cfg.priorityWeight,.45),0,1);
+  const relativeStakes=clamp(priority.home.pressure-priority.away.pressure,-.09,.09);
+  const hRotation=priority.home.rotationRisk, aRotation=priority.away.rotationRisk;
+  goals.home=clamp(goals.home*Math.exp(priorityWeight*(relativeStakes-hRotation+.35*aRotation)),.18,4.8);
+  goals.away=clamp(goals.away*Math.exp(priorityWeight*(-relativeStakes-aRotation+.35*hRotation)),.15,4.5);
+  goals.features.matchPriority=priority;
   const goalsModel=poissonMatrix(goals.home,goals.away,clamp(num(cfg.rho,0),-.09,.09));
   const elo=eloModel(states.home.elo,states.away.elo,num(cfg.eloHome,75));
   const eloWeight=clamp(num(cfg.eloWeight,.25),0,1);
@@ -197,4 +207,4 @@ export function predictIntelligence(fixture,matchList=[],context={}){
     model:'Intelligence V2',topScores:goalsModel.scores.sort((a,b)=>b.probability-a.probability).slice(0,5)};
 }
 export const BASELINE_CONFIG=Object.freeze({prior:6,power:.83,eloK:23,eloWeight:.25,marketWeight:.5,
-  rho:0,temperature:1,decayDays:105,homeBase:1.65,awayBase:1.32});
+  rho:0,temperature:1,decayDays:105,priorityWeight:.45,homeBase:1.65,awayBase:1.32});
