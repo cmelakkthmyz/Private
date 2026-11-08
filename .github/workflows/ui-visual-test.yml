@@ -20,6 +20,9 @@ jobs:
         run: |
           npm install --no-save esbuild@0.25.12 playwright@latest
           npx playwright install chromium
+      - name: Inspect Chance public odds page with normal unauthenticated browser
+        run: node research/probeChancePublic.mjs
+        continue-on-error: true
       - name: Build real Android HTML and V3 engine
         run: |
           ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
@@ -30,5 +33,7 @@ jobs:
         if: always()
         with:
           name: sport-predictor-android-mobile-screenshots
-          path: research/screenshots/*.png
+          path: |
+            research/screenshots/*.png
+            research/results/chance-public-probe.json
           if-no-files-found: warn
