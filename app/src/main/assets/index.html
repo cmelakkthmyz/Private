@@ -14,15 +14,12 @@
  <button type="button" id="league-hockey" aria-pressed="false">Český hokej</button>
 </nav>
 <div class="coverage" id="coverage"></div>
-<section class="toolbar"><div><h2 id="match-title">Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
-<div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
-<div class="matches" id="matches"></div>
-<section class="manual"><h2>Vlastní zápas</h2><p id="manual-hint">Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
-<div class="controls"><label>Domácí<select id="home"></select></label><label>Hosté<select id="away"></select></label></div>
-<div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
-<label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
-<button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
-<section class="ticket-studio" aria-labelledby="ticket-heading">
+<nav class="quick-jump" aria-label="Rychlé menu">
+ <a href="#auto-tickets"><span>Automatické tikety</span></a>
+ <a href="#games"><span>Zápasy</span></a>
+ <a href="#own-match"><span>Vlastní zápas</span></a>
+</nav>
+<section id="auto-tickets" class="ticket-studio" aria-labelledby="ticket-heading">
  <div class="studio-head"><div>
   <div class="eyebrow">AUTOMATICKÁ ANALÝZA KURZŮ</div>
   <h2 id="ticket-heading">Hledač kombinací</h2>
@@ -49,7 +46,30 @@
  <button id="scan-odds" class="wide scan-button" type="button"><span>Prohledat aktuální nabídku</span></button>
  <div id="auto-results" aria-live="polite"></div>
  <div class="source-notice" id="source-notice">Kurzy nejsou z účtu Chance ani Tipsport; jde o veřejně dostupné ranní hodnoty Tipsportu zveřejněné na SazkyWeb.cz. Nejde o živou garantovanou cenu.</div>
+ <details class="historical-details">
+ <summary>Jak dopadl historický test tiketů?</summary>
+ <div class="historical-content">
+  <p>Ověřeno na zápasech Premier League s tehdejšími předzápasovými průměrnými kurzy trhu, nikoliv konkrétními kurzy Tipsportu.</p>
+  <table><thead><tr><th>Režim</th><th>2024/25</th><th>2025/26</th></tr></thead>
+   <tbody>
+    <tr><th>Vyvážený</th><td>−30,6 %</td><td>−8,4 %</td></tr>
+    <tr><th>Vyšší kurz</th><td>−51,1 %</td><td>+64,7 %*</td></tr>
+    <tr><th>Remízy</th><td>−61,3 %</td><td>−32,7 %</td></tr>
+   </tbody></table>
+  <p>* Režim Vyšší kurz měl v testu 2025/26 pouze 4 úspěšné kombinace ze 47. Výsledek je velmi kolísavý a nepotvrzuje dlouhodobou výhodu.</p>
+  <p>Výsledky jsou čistý výnos nebo ztráta oproti součtu testovaných vkladů. Žádný režim neziskový nebyl ve všech testovaných sezónách.</p>
+ </div>
+</details>
 </section>
+<section id="games" class="toolbar"><div><h2 id="match-title">Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
+<div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
+<div class="matches" id="matches"></div>
+<section id="own-match" class="manual"><h2>Vlastní zápas</h2><p id="manual-hint">Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
+<div class="controls"><label>Domácí<select id="home"></select></label><label>Hosté<select id="away"></select></label></div>
+<div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
+<label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
+<button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
+
 
 <p class="fine" id="data-attribution">Zdroje: ESPN (fotbal), SazkyWeb.cz (hokej, CC BY 4.0), OpenFootball (historie, CC0). Pro hokej nejsou k dispozici individuální výsledky po 60 minutách, takže se historická přesnost zatím nedá spolehlivě ověřit. Nikdy nezadávej hesla k sázkovce do aplikace. Výsledky jsou odhady, nikoli záruka.</p>
 </main><script src="model.js"></script><script src="intelligence.js"></script><script src="czArchive.js"></script><script src="app.js"></script>
