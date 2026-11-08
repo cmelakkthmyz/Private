@@ -20,6 +20,8 @@ function scoreForSelectedPick(xgHome,xgAway,pick){
 
 const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
+const EN_ARCHIVE=globalThis.ENG_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{complete:0,requested:21}};
+const VALIDATED=globalThis.V3_VALIDATION||{production:{advancedHistory:false,venueWeight:0,shotsWeight:0}};
 const HOCKEY=['Bílí Tygři Liberec','Dynamo Pardubice','HC Energie Karlovy Vary','HC Kometa Brno',
  'HC Motor České Budějovice','HC Olomouc','HC Oceláři Třinec','HC Sparta Praha',
  'HC Škoda Plzeň','HC Verva Litvínov','HC Vítkovice Ridera','Mountfield HK',
@@ -48,8 +50,24 @@ const ALIASES={
 let current='pl',sessionMatches=[],sessionTeams=[],lastPayload=null,lastUpdated=null;
 let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
+let livePlContext=null,livePlTimestamp=null,backgroundErrors={};
 const candidatesByLeague={pl:[],cz:[],hockey:[]};
 const canonical=name=>ALIASES[name]||String(name||'').replace(/ FC$/,'').trim();
+function acceptLiveContext(raw){
+ const ctx=raw?.context;
+ if(!ctx||!Array.isArray(ctx.teams)||ctx.teams.length<18||
+  !Array.isArray(ctx.players)||ctx.players.length<200||!ctx.fetchedAt)return false;
+ const at=Date.parse(ctx.fetchedAt),now=Date.now();
+ if(!Number.isFinite(at)||at>now+120000||now-at>72*3600000)return false;
+ if(!ctx.teams.every(t=>t.id&&Number.isFinite(Number(t.attack))&&Number.isFinite(Number(t.defense))))return false;
+ livePlContext=ctx;livePlTimestamp=ctx.fetchedAt;
+ try{localStorage.setItem('live-pl-context-v1',JSON.stringify(ctx));}catch(e){}
+ return true;
+}
+function fplFresh(){
+ const at=Date.parse(livePlContext?.fetchedAt||'');
+ return Number.isFinite(at)&&at<=Date.now()+120000&&Date.now()-at<72*3600000;
+}
 const storeKey=league=>'premier-intelligence-online-v1:'+LEAGUES[league].namespace;
 function readState(){
  const key=storeKey(current),fallback=MOD.newLearningState(LEAGUES[current].namespace);
@@ -93,7 +111,9 @@ function seasonOf(date){
  return y+'-'+String((y+1)%100).padStart(2,'0');
 }
 function archiveMatches(){
- return current==='cz'?ARCHIVE.matches||[]:[];
+ if(current==='cz')return ARCHIVE.matches||[];
+ if(current==='pl')return EN_ARCHIVE.matches||[];
+ return [];
 }
 function knownTeams(){
  if(current==='pl')return OLD.TEAM_NAMES;
@@ -114,17 +134,24 @@ function modelForFixture(match,matches,manual=false){
  const history=historical.concat(matches||[]);
  const hockeyProfile=current==='hockey'?HOCK.hockeyStandingsProfile(hockeyStandings):null;
  const profileRates=current==='hockey'?HOCK.hockeyFixtureRates(hockeyProfile,match.home_team_id,match.away_team_id):null;
+ const useFplSource=current==='pl'&&!manual&&fplFresh();
+ const verifiedHistorical=current==='pl'&&VALIDATED.production?.advancedHistory===true;
  const cfg={
   prior:6,power:.87,eloWeight:current==='hockey'?.12:.25,marketWeight:0,
   priorityWeight:current==='hockey'?0:.40,
-  useFpl:manual,homeBase:profileRates?.homeBase??league.homeBase,
+  useFpl:manual||useFplSource,
+  useAvailability:useFplSource,
+  useAdvancedHistory:verifiedHistorical,venueWeight:verifiedHistorical?(VALIDATED.production.venueWeight||0):0,
+  shotsWeight:0,
+  homeBase:profileRates?.homeBase??league.homeBase,
   awayBase:profileRates?.awayBase??league.awayBase,decayDays:135
  };
  const teams=manual?[
   {id:match.home_team_id,attack:Number($('home-strength').value),defense:Number($('home-strength').value)},
   {id:match.away_team_id,attack:Number($('away-strength').value),defense:Number($('away-strength').value)}
- ]:[];
- const result=MOD.predictIntelligence(match,history,{config:cfg,teams,schedule:history});
+ ]:useFplSource?livePlContext.teams:[];
+ const players=useFplSource?livePlContext.players:[];
+ const result=MOD.predictIntelligence(match,history,{config:cfg,teams,players,schedule:history});
  return current==='hockey'?HOCK.calibrateRegulationHockey(result,hockeyProfile):result;
 }
 function updateHistory(played){
@@ -332,7 +359,11 @@ function renderCoverage(state=readState()){
   'Doložené historické sezóny: '+(ARCHIVE.verifiedSeasons||[]).join(', ')+
   ' · '+(ARCHIVE.coverage?.loadedTrainingSeasons||0)+' z 20 požadovaných starších sezón. Chybějící data nejsou doplňována odhady.':
   current==='hockey'?'Zdroj tabulky: SazkyWeb.cz (CC BY 4.0) · '+(hockeyUpdated||'offline')+'. Statistiky obsahují i góly z prodloužení; výsledek 1/X/2 je předpověď po 60 minutách, experimentální. Bez historie výsledků po 60 minutách se model zatím sám z hokeje neučí.':
-  'Premier League: model používá aktuálně známé výsledky a průběžně uložené vlastní tipy.';
+  'Premier League: '+(EN_ARCHIVE.coverage?.complete||0)+' ověřených ročníků OpenFootball CC0 ('+
+  (EN_ARCHIVE.coverage?.fixtures||0)+' zápasů) · '+(fplFresh()?
+   'aktuální síly klubů a dostupnost hráčů z FPL ('+new Date(livePlTimestamp).toLocaleString('cs-CZ')+')':
+   'FPL informace o hráčích nyní nejsou ověřené; používám historické výsledky')+
+  ' · pokročilé domácí/venkovní statistiky '+(VALIDATED.production?.advancedHistory?'aktivní po historické validaci':'vypnuté, bez potvrzeného zlepšení')+'.';
  $('coverage').textContent=league.title+' · '+coverage+' · '+recorded;
 }
 function fallback(message){
@@ -360,6 +391,7 @@ globalThis.receiveMatches=function(raw,requestedLeague){
  if(requestedLeague&&requestedLeague!==current)return;
  try{
   const d=JSON.parse(raw);
+  if(current==='pl')acceptLiveContext(d);
   if(d.error)throw Error(d.error);
   if(current==='hockey'){
    renderHockey(d);return;
@@ -416,6 +448,11 @@ for(const profile of ['balanced','longshot','draws'])
 for(const stake of [10,20,50])
  $('stake-'+stake).addEventListener('click',()=>setTicketStake(stake));
 $('scan-odds').addEventListener('click',()=>loadAutomaticOdds(true));
+try{
+ const restored=JSON.parse(localStorage.getItem('live-pl-context-v1')||'null');
+ if(restored)acceptLiveContext({context:restored});
+}catch(e){}
 changeLeague('pl');
 loadAutomaticOdds(true);
+if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
 })();
