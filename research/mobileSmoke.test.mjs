@@ -11,7 +11,7 @@ const makeDom=()=>{
   'league-pl','league-cz','league-hockey','coverage','match-title','status','matches',
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
-  'odds-status','odds-total','odds-matched','odds-updated',
+  'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
   'profile-balanced','profile-longshot','profile-draws',
   'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
   'paper-pending','paper-completed','paper-profit','paper-status',
@@ -34,6 +34,7 @@ const makeDom=()=>{
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
   AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);},
    loadChanceOdds(){calls.push('chance');},
+   loadTipsportApiOdds(){calls.push('tipsport-api');},
    chanceKeyStatus(){calls.push('chance-key-status');},
    saveChanceApiKey(key){calls.push('save-key');},
    clearChanceApiKey(){calls.push('clear-key');}},
@@ -342,4 +343,27 @@ test('PulseScore key is passed only to Android encrypted bridge, never saved in 
  assert.equal(t.calls.filter(v=>v==='chance').length,before+1);
  t.controls['clear-chance-key'].listeners.click();
  assert.ok(t.calls.includes('clear-key'));
+});
+
+test('resuming the app starts an automatic foreground odds scan',()=>{
+ const t=makeDom();
+ const count=t.calls.filter(x=>x==='odds').length;
+ t.ctx.sportPredictorOnPause();
+ assert.ok(t.controls['auto-refresh-status'].textContent.includes('pozadí'));
+ t.ctx.sportPredictorOnResume();
+ assert.ok(t.calls.filter(x=>x==='odds').length>count);
+ assert.ok(t.controls['auto-refresh-status'].textContent.includes('Kontroluji'));
+});
+test('Tipsport API uses different provider and does not mix with morning snapshot',()=>{
+ const t=makeDom();
+ t.controls['odds-provider'].value='tipsport-api';
+ t.controls['odds-provider'].listeners.change();
+ assert.ok(t.calls.includes('tipsport-api'));
+ const offer={id:'t1',league:'pl',home:'Arsenal',away:'Chelsea',kickoff:t.upcoming,
+  odds:{'1':2.3,X:3.4,'2':3.1},bookmaker:'Tipsport'};
+ t.ctx.receiveOdds(JSON.stringify({bookmaker:'Tipsport',offers:[offer],fetchedAt:new Date().toISOString()}),'tipsport-api');
+ assert.equal(t.controls['odds-total'].textContent,'1');
+ assert.ok(t.saved.get('auto-odds-v2:tipsport-api'));
+ t.ctx.receiveOdds(JSON.stringify({bookmaker:'Tipsport',offers:[offer],fetchedAt:new Date().toISOString()}),'tipsport');
+ assert.equal(t.controls['odds-total'].textContent,'1');
 });
