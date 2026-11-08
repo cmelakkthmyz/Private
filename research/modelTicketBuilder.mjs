@@ -21,8 +21,8 @@ function validFixture(m,now){
   kickoff:new Date(kickoff).toISOString(),pick,probabilities:p,probability:p[pick],
   price:hasOdds?odds[pick]:null,
   odds:hasOdds?odds:null,marketSource:hasOdds?String(m.bookmaker||'datový poskytovatel'):null,
-  xgHome:Number.isFinite(Number(m.xgHome))?Number(m.xgHome):null,
-  xgAway:Number.isFinite(Number(m.xgAway))?Number(m.xgAway):null,
+  xgHome:m.xgHome!=null&&Number.isFinite(Number(m.xgHome))?Number(m.xgHome):null,
+  xgAway:m.xgAway!=null&&Number.isFinite(Number(m.xgAway))?Number(m.xgAway):null,
   explanation:String(m.explanation||'Model založený na dostupných statistikách'),
   modelVerified:m.modelVerified===true
  };
@@ -106,7 +106,7 @@ function buildTicket(type,legs,stake){
   expectedPayout:result.expectedPayout,expectedNet:result.expectedNet,
   hasPrices:result.hasPrices,
   confidenceWarning:legs.some(x=>!x.modelVerified),
-  label:type==='solo'?'SOLO':type==='ako'?'AKO '+legs.length:
+  label:type==='solo'?'SOLO':type==='ako'?'AKU '+legs.length:
    type==='kombi'?'KOMBI '+(legs.length-1)+'/'+legs.length:'MAXIKOMBI '+legs.length,
   // Without validated bookmaking prices, a multi-line system is not
   // labelled better simply because it has many chances to win *something*.
