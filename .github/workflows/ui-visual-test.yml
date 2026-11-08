@@ -20,7 +20,7 @@ jobs:
         run: |
           npm install --no-save esbuild@0.25.12 playwright@latest
           npx playwright install chromium
-      - name: Build real Android HTML and V2 engine
+      - name: Build real Android HTML and V3 engine
         run: |
           ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
           node research/buildMobileArchive.mjs
