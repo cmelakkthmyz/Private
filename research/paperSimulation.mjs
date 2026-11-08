@@ -99,9 +99,18 @@ export function placePaperTicket(ledger,proposal,{createdAt=new Date().toISOStri
 }
 function sameGame(leg,result){
  if(result.league!==leg.league ||result.status!=='finished')return false;
- // Football's ID must match; hockey sportsbook ID differs from hokej.cz ID.
- if(leg.league!=='hockey')return String(result.matchId)===String(leg.matchId);
+ // EPL fixture ids match the same source. Czech football is sourced from
+ // public bookie schedules and independent OpenFootball results, so their ids
+ // differ: require same Prague calendar day, both teams and no ambiguity.
+ if(leg.league==='pl')return String(result.matchId)===String(leg.matchId);
  if(!validDate(result.kickoff)||!validDate(leg.kickoff))return false;
+ if(leg.league==='cz'){
+  const localDay=t=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Prague',
+   year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
+  return localDay(result.kickoff)===localDay(leg.kickoff)&&
+   normClub(result.home)===normClub(leg.home)&&
+   normClub(result.away)===normClub(leg.away);
+ }
  const diff=Math.abs(Date.parse(result.kickoff)-Date.parse(leg.kickoff));
  if(diff>4*3600_000)return false;
  return normClub(result.home)===normClub(leg.home)&&normClub(result.away)===normClub(leg.away);
