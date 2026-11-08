@@ -19,16 +19,28 @@ jobs:
         run: |
           node --check app/src/main/assets/model.js
           node --check app/src/main/assets/app.js
+          node --check research/openFootballEngland.mjs
+          node --check research/extraHistorySignals.mjs
+          node --check research/advancedValidation.mjs
           if [ -f research/hockeyV2.mjs ]; then node --check research/hockeyV2.mjs && node --check research/ticketEvaluator.mjs && node --check research/autoOddsScanner.mjs; fi
           node --test test/model.test.cjs
-          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs; fi
-      - name: Compile online-learning browser engine and audited CZ archive
+          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs research/advancedHistory.test.mjs; fi
+      - name: Audited 21-season model selection on separate validation and holdout
+        run: node research/advancedValidation.mjs
+        timeout-minutes: 14
+      - name: Compile online-learning browser engine and audited CZ and English archives
         run: |
           if [ -f research/browserAdapter.mjs ]; then
             npm install --no-save esbuild@0.25.12
             ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
             node research/buildMobileArchive.mjs
           fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sport-predictor-v3-historical-model-report
+          path: research/results/advanced-history-validation.json
+          if-no-files-found: warn
       - name: Test actual Android WebView app assets
         run: node --test research/mobileSmoke.test.mjs
       - uses: actions/setup-java@v4
