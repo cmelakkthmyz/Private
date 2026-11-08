@@ -6,6 +6,7 @@ const yyyy=today.getUTCFullYear(),start=today.getUTCMonth()>=7?yyyy:yyyy-1;
 const probe=[
  {id:'fpl',url:'https://fantasy.premierleague.com/api/bootstrap-static/',type:'json'},
  {id:'fplFixtures',url:'https://fantasy.premierleague.com/api/fixtures/',type:'json'},
+ {id:'openfootballCzechLeague',url:'https://raw.githubusercontent.com/openfootball/europe/master/czech-republic/'+start+'-'+String((start+1)%100).padStart(2,'0')+'_cz1.txt',type:'text'},
  {id:'espnCzechFootball',url:'https://site.api.espn.com/apis/site/v2/sports/soccer/cze.1/scoreboard?dates='+start+'0801-'+(start+1)+'0630&limit=500',type:'json'},
  {id:'tipsportPublicOdds',url:'https://sazkyweb.cz/tipsport-kurzy-dnes.html',type:'html'},
  {id:'hockeyScoreboardYesterday',url:'https://json.esports.cz/hokejcz/scoreboard/'+yesterday+'.json',type:'json'}
@@ -31,6 +32,10 @@ async function read(item){
     else if(item.id==='espnCzechFootball')valid=found.events>0;
     else valid=found.hockeyLeague101;
    }catch(e){found={jsonParseError:String(e).slice(0,120)};}
+  }else if(item.type==='text'){
+   found={bytes:txt.length,finishedScoreRows:(txt.match(/\b\d+-\d+ \(\d+-\d+\)/g)||[]).length,
+    firstLeagueText:/First League/.test(txt)};
+   valid=res.ok&&found.bytes>4000&&found.finishedScoreRows>=25&&found.firstLeagueText;
   }else{
    found={htmlLength:txt.length,rows:(txt.match(/<tr[^>]*data-start/gi)||[]).length,
     bookmakerMention:/tipsport/i.test(txt)};
