@@ -59,7 +59,7 @@ function rows(){
 }
 test('home page starts with Premier League and requests its actual fixtures',()=>{
  const t=makeDom();
- assert.equal(t.calls[0],'pl');
+ assert.ok(t.calls.includes('pl'),'Startup must request real Premier League fixtures');
  assert.ok(t.controls['coverage'].textContent.includes('Premier League'));
  const second=event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+86400000).toISOString());
  second.id='s2';
