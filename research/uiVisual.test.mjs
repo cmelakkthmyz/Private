@@ -56,14 +56,35 @@ await page.addInitScript(()=>{
    });
   },
   loadOdds(){window.__oddsRequests=(window.__oddsRequests||0)+1;
-   safeCall(()=>window.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()})));}
+   safeCall(()=>window.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()})));},
+  loadAllLeagues(){
+   window.__fullScanRequests=(window.__fullScanRequests||0)+1;
+   const names=['Arsenal','Liverpool','Brentford','Chelsea','Fulham','Everton','Manchester City',
+    'Manchester United','Tottenham Hotspur','Aston Villa','Brighton','Newcastle United',
+    'Wolverhampton Wanderers','West Ham United','Nottingham Forest','Burnley',
+    'Leeds United','Bournemouth','Crystal Palace','Sunderland'];
+   const teams=names.map(id=>({id,attack:72,defense:70}));
+   const players=Array.from({length:230},(_,i)=>({
+    name:'Example '+i,team_id:names[i%20],minutes:400,xg:1,xa:.2,
+    availability:i%29===0?'i':'a',chance_of_playing_next_round:i%29===0?0:100}));
+   const context={teams,players,fetchedAt:new Date().toISOString(),
+    source:'Fantasy Premier League public API',
+    futureCupFixtures:[{team_id:'Arsenal',kickoff:future(48),
+     competition:'Liga mistrů',stage:'knockout',verified:true}]};
+   safeCall(()=>window.receiveAllLeagues(JSON.stringify({
+    pl:{events:model.pl,context},cz:{events:model.cz},
+    hockey:{sport:'hockey',standings,updated:new Date().toISOString(),
+     scheduleCurrent:true,events:[{id:'h1',home:'Třinec',away:'Olomouc',date:future(12)},
+      {id:'h2',home:'Pardubice',away:'Kometa Brno',date:future(13)}]}
+   })));
+  }
  };
 });
 try {
  const errorsSummary=[];
  await page.goto('http://127.0.0.1:'+port+'/app/src/main/assets/index.html',{waitUntil:'load',timeout:60000});
  await page.waitForFunction(()=>document.querySelector('#odds-total')?.textContent==='7',{timeout:25000});
- await page.waitForFunction(()=>document.querySelector('#odds-matched')?.textContent!=='–',{timeout:25000});
+ await page.waitForFunction(()=>document.querySelector('#odds-matched')?.textContent==='7',{timeout:35000});
  assert.equal(await page.locator('#odds-total').innerText(),'7');
  assert.equal(await page.locator('#league-pl').getAttribute('aria-pressed'),'true');
  assert.equal(await page.locator('#ticket-odds-0').count(),0);
@@ -80,6 +101,8 @@ try {
  await page.waitForFunction(()=>window.__oddsRequests>=2,{timeout:5000});
  await page.waitForFunction(()=>document.querySelector('#odds-total')?.textContent==='7',{timeout:15000});
  await mkdir('research/screenshots',{recursive:true});
+ await page.locator('.factor-list summary').first().click();
+ assert.ok(await page.locator('.factor-list li').first().isVisible());
  await page.screenshot({path:'research/screenshots/android-auto-odds-pl.png',fullPage:true});
  await page.locator('#league-cz').click();
  await page.waitForFunction(()=>document.querySelector('#matches')?.textContent.includes('Sparta Praha'),{timeout:15000});
