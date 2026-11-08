@@ -119,3 +119,21 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .quick-jump{grid-template-columns:repeat(4,minmax(0,1fr))}
 #paper-lab{scroll-margin-top:15px}
 @media(min-width:680px){.paper-lab{padding:23px}.paper-actions button{font-size:14px}}
+
+
+/* Separate research-only ticket previews from verified-value selections. */
+.experimental-banner{background:#1d3548;border:1px solid #d7a962;border-radius:12px;
+ padding:13px 14px;margin:13px 0;color:#ffdbad}
+.experimental-banner strong{font-size:15px}
+.experimental-banner p{color:#d7dfdf;font-size:12px;line-height:1.5;margin:8px 0 0}
+.auto-ticket-experimental{border:1px solid #b68d57;background:linear-gradient(135deg,#253949,#1a2b3d)}
+.experimental-warning{font-size:12px;line-height:1.45;color:#ffdda5;
+ background:#453b31;border-radius:8px;padding:10px;margin:10px 0}
+.ticket-paper-action{min-height:48px;background:#7be5c5;border:1px solid #7be5c5;
+ color:#103229;font-size:13px;font-weight:800;border-radius:11px;width:100%;margin-top:7px}
+.ticket-paper-action:active{background:#9bf4d9}
+.match-diagnostics{border:1px solid #37586d;background:#132c40;border-radius:11px;
+ padding:11px 12px;margin:14px 0;color:#accad9;font-size:12px;line-height:1.5}
+.match-diagnostics summary{cursor:pointer;color:#a9e7d7;min-height:30px;
+ display:flex;align-items:center;font-weight:700}
+.match-diagnostics p{margin:5px 0}
