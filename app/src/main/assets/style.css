@@ -59,3 +59,20 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .ticket-caveat{font-size:11px;line-height:1.5;color:#abc4d0;border-top:1px solid #39596a;padding-top:10px}
 .source-notice{color:#8faebe;font-size:11px;line-height:1.5;margin-top:17px;border-left:3px solid #53768a;padding:5px 10px}
 @media(min-width:680px){.ticket-studio{padding:24px}.ticket-profiles{gap:12px}.ticket-profiles button{min-height:77px}}
+
+
+/* Fast jump navigation – reachable above the fold */
+.quick-jump{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0}
+.quick-jump a{display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;
+ border:1px solid #34576d;border-radius:10px;text-decoration:none;color:#d4e7f1;background:#1a334b;
+ padding:5px;font-size:11px;font-weight:750;line-height:1.25}
+.quick-jump a:first-child{background:#2b5954;border-color:#5dafa0;color:#dcfff3}
+#auto-tickets,#games,#own-match{scroll-margin-top:16px}
+.historical-details{border-top:1px solid #35566c;margin-top:17px;color:#bdd4df;padding-top:8px}
+.historical-details summary{font-size:12px;font-weight:750;cursor:pointer;list-style:revert;min-height:40px;
+ display:flex;align-items:center;color:#80e9cc;text-decoration:underline;text-underline-offset:3px}
+.historical-content{padding:4px 0 7px;font-size:11px;line-height:1.5;color:#bfd2de}
+.historical-content table{border-collapse:collapse;width:100%;margin:12px 0;color:#e5eff8;font-variant-numeric:tabular-nums}
+.historical-content th,.historical-content td{padding:10px 5px;text-align:center;border-bottom:1px solid #35576b}
+.historical-content th:first-child{text-align:left}
+.historical-content tr:nth-child(even){background:#20394d}
