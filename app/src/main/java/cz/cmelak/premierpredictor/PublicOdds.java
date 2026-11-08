@@ -48,7 +48,7 @@ public final class PublicOdds {
                 if (strong == null) { rejected++; continue; }
                 String teams = strong.text();
                 String[] participants = teams.split("\\s+[–—]\\s+", 2);
-                if (participants.length != 2 || participants[0].isBlank() || participants[1].isBlank()) {
+                if (participants.length != 2 || participants[0].trim().isEmpty() || participants[1].trim().isEmpty()) {
                     rejected++; continue;
                 }
                 // Tipsport is specifically the FOURTH column (index 3). Other
