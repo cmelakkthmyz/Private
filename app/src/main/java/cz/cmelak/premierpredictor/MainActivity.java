@@ -112,6 +112,62 @@ public final class MainActivity extends Activity {
             });
         }
 
+        @JavascriptInterface public void saveChanceApiKey(String key) {
+            executor.execute(() -> {
+                String message;
+                boolean ok=false;
+                try{
+                    ChanceKeyStore.save(MainActivity.this,key);
+                    ok=true;message="Klíč datového poskytovatele uložen šifrovaně.";
+                }catch(Exception ex){
+                    message=ex.getMessage()==null?"Klíč nelze uložit.":ex.getMessage();
+                }
+                final boolean success=ok;
+                final String result=message;
+                runOnUiThread(() -> {
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveChanceKeyStatus("+success+","+
+                            JSONObject.quote(result)+");",null);
+                });
+            });
+        }
+        @JavascriptInterface public void clearChanceApiKey() {
+            executor.execute(()->{
+                ChanceKeyStore.clear(MainActivity.this);
+                runOnUiThread(()->{
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveChanceKeyStatus(false,"+
+                            JSONObject.quote("Klíč byl odebrán.")+");",null);
+                });
+            });
+        }
+        @JavascriptInterface public void chanceKeyStatus() {
+            executor.execute(()->{
+                final boolean present=ChanceKeyStore.configured(MainActivity.this);
+                runOnUiThread(()->{
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveChanceKeyStatus("+present+","+
+                            JSONObject.quote(present?"Klíč PulseScore je nastaven.":"Pro kurzy Chance je potřeba klíč PulseScore (bezplatný tarif BASIC).")+");",null);
+                });
+            });
+        }
+        @JavascriptInterface public void loadChanceOdds() {
+            executor.execute(()->{
+                String payload;
+                try{
+                    payload=downloadChanceOdds().toString();
+                }catch(Exception e){
+                    payload="{\"error\":"+JSONObject.quote(
+                        "Kurzy Chance: "+(e.getMessage()==null?"nedostupné":e.getMessage()))+"}";
+                }
+                final String result=payload;
+                runOnUiThread(()->{
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveOdds("+JSONObject.quote(result)+");",null);
+                });
+            });
+        }
+
         @JavascriptInterface public void loadOdds() {
             executor.execute(() -> {
                 String payload;
@@ -395,6 +451,63 @@ public final class MainActivity extends Activity {
         result.put("scheduleCurrent", today.toString().equals(date));
         result.put("licence", "CC BY 4.0, zdroj: SazkyWeb.cz");
         return result.toString();
+    }
+
+
+    // Read-only Chance pre-match board from documented independent API.
+    // No bookmaker account is accessed, and no bets are placed.
+    private JSONObject downloadChanceOdds() throws Exception {
+        String key=ChanceKeyStore.load(this);
+        if(key==null||key.trim().isEmpty())
+            throw new IllegalStateException("Chybí API klíč PulseScore. Bez klíče nelze ověřit kurzy Chance.");
+        JSONArray soccer=new JSONArray(),hockey=new JSONArray();
+        String[] types={"soccer","ice-hockey"};
+        for(int index=0;index<types.length;index++){
+            JSONArray destination=index==0?soccer:hockey;
+            for(int page=1;page<=4;page++){
+                String url=ChanceOddsFeed.API+types[index]+"/events?page="+page+"&limit=30";
+                String response=readChancePage(url,key);
+                JSONObject json=new JSONObject(response);
+                if(json.optJSONArray("events")==null)
+                    throw new IllegalStateException("API Chance vrátilo neplatnou odpověď.");
+                destination.put(json);
+                if(!json.optBoolean("hasNextPage",false)||
+                   json.getJSONArray("events").length()==0)break;
+            }
+        }
+        JSONObject parsed=ChanceOddsFeed.parse(soccer,hockey,System.currentTimeMillis());
+        if(parsed.getJSONArray("offers").length()==0) {
+            // Valid empty results must never be replaced with prices from
+            // unrelated market, period, or another sportsbook.
+            parsed.put("note","Chance API funguje, ale v načtených stránkách dnes nejsou "
+                +"ověřené předzápasové kurzy 1/X/2 pro sledované soutěže.");
+        }
+        return parsed;
+    }
+    private String readChancePage(String address,String key) throws Exception {
+        java.net.HttpURLConnection conn=(java.net.HttpURLConnection)new URL(address).openConnection();
+        conn.setConnectTimeout(9000);conn.setReadTimeout(10000);
+        conn.setRequestProperty("Accept","application/json");
+        conn.setRequestProperty("x-secret",key);
+        conn.setRequestProperty("User-Agent","SportPredictorAI/3.2 (personal research)");
+        try{
+            int status=conn.getResponseCode();
+            if(status==401||status==403)throw new IllegalStateException(
+                "API klíč PulseScore není platný nebo nemá přístup ke kurzům Chance.");
+            if(status==429)throw new IllegalStateException(
+                "Byl překročen limit požadavků PulseScore. Zkus to později.");
+            if(status!=200)throw new IllegalStateException("Datový zdroj Chance HTTP "+status);
+            try(InputStream input=conn.getInputStream();
+                ByteArrayOutputStream output=new ByteArrayOutputStream()){
+                byte[] bytes=new byte[8192];int n;
+                while((n=input.read(bytes))!=-1){
+                    if(output.size()+n>4_000_000)
+                        throw new IllegalStateException("Příliš velká odpověď Chance API");
+                    output.write(bytes,0,n);
+                }
+                return output.toString("UTF-8");
+            }
+        }finally{conn.disconnect();}
     }
 
     private String readRemote(String address) throws Exception {
