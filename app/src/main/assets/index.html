@@ -8,14 +8,20 @@
 <h1>Premier League <span>Predictor</span></h1>
 <p>Aktuální zápasy a odhady 1 / X / 2 z lokálního matematického modelu.</p></div></header>
 <main class="wrap">
-<section class="toolbar"><div><h2>Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
+<nav class="league-tabs" aria-label="Soutěž">
+ <button type="button" id="league-pl" aria-pressed="true">Premier League</button>
+ <button type="button" id="league-cz" aria-pressed="false">Český fotbal</button>
+ <button type="button" id="league-hockey" aria-pressed="false">Český hokej</button>
+</nav>
+<div class="coverage" id="coverage"></div>
+<section class="toolbar"><div><h2 id="match-title">Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
 <div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
 <div class="matches" id="matches"></div>
-<section class="manual"><h2>Vlastní zápas</h2><p>Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
+<section class="manual"><h2>Vlastní zápas</h2><p id="manual-hint">Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
 <div class="controls"><label>Domácí<select id="home"></select></label><label>Hosté<select id="away"></select></label></div>
 <div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
 <label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
 <button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
-<p class="fine">Rozpis a odehrané zápasy: ESPN (přes internet). Odhady počítá aplikace přímo v telefonu a nepoužívá Base44. Nejde o záruku výsledku ani sázkové doporučení.</p>
-</main><script src="model.js"></script><script src="app.js"></script>
+<p class="fine" id="data-attribution">Rozpis a odehrané zápasy: ESPN (přes internet). Odhady počítá aplikace přímo v telefonu a nepoužívá Base44. Nejde o záruku výsledku ani sázkové doporučení.</p>
+</main><script src="model.js"></script><script src="intelligence.js"></script><script src="czArchive.js"></script><script src="app.js"></script>
 </body></html>
