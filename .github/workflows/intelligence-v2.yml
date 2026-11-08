@@ -21,12 +21,19 @@ jobs:
           node --check research/intelligenceV2.mjs
           node --check research/matchPriority.mjs
           node --check research/walkForwardV2.mjs
+          node --check research/continualLearning.mjs
+          node --check research/czechHistory.mjs
+          node --check research/seasonalReplay.mjs
       - name: Invariant and anti-leakage tests
-        run: node --test research/modelV2.test.mjs
+        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs
       - name: Historical out-of-sample backtest
         run: node research/walkForwardV2.mjs
+      - name: Czech league audited historical replay and self-learning
+        run: node research/seasonalReplay.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: premier-league-intelligence-v2-results
-          path: research/results/v2-backtest.json
+          path: |
+            research/results/v2-backtest.json
+            research/results/czech-history-learning.json
           if-no-files-found: error
