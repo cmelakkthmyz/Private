@@ -37,6 +37,13 @@ jobs:
         run: |
           echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      # Persist only the *debug* signing key between CI builds.
+      # This allows installing updates without Android rejecting changed signatures.
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: sport-predictor-v34-debug-signing-v1
       - name: Test and compile APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload installable APK
