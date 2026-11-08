@@ -22,6 +22,7 @@ const makeDom=()=>{
   id,value:id.includes('strength')?'70':'',innerHTML:'',textContent:'',className:'',
   selectedIndex:0,attributes:{},listeners:{},
   addEventListener(type,handler){this.listeners[type]=handler;},
+  querySelectorAll(){return [];},
   setAttribute(k,v){this.attributes[k]=v;}
  };
  const saved=new Map(),calls=[],now=Date.now(),upcoming=new Date(now+3*86400000).toISOString();
@@ -148,7 +149,7 @@ test('no ticket is produced from stale bookmaker snapshot',()=>{
  t.ctx.receiveOdds(JSON.stringify({offers:[{
   id:'a',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,odds:{'1':2,X:3,'2':4}
  }],fetchedAt:new Date(Date.now()-20*3600000).toISOString()}));
- assert.ok(t.controls['auto-results'].innerHTML.includes('platnost vypršela'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('nejsou dostupné'));
 });
 
 test('FPL live squad statuses and 21-year CC0 archive are visible only with valid as-of snapshot',()=>{
@@ -241,4 +242,54 @@ test('paper result verification button invokes native all-league and hockey sett
  t.controls['paper-check'].listeners.click();
  assert.ok(t.calls.filter(x=>x==='all').length>before);
  assert.ok(t.controls['paper-status'].textContent.includes('Kontroluji'));
+});
+
+
+test('screenshot regression: 15 bookmaker rows, 2 verified fixtures, remizy mode shows an experimental paper ticket',()=>{
+ const t=makeDom();
+ const later=new Date(Date.parse(t.upcoming)+3600000).toISOString();
+ t.controls['profile-draws'].listeners.click();
+ const second={...event('Chelsea','Fulham',later),id:'s2'};
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
+ const valid=[
+  {id:'real1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+   odds:{'1':2.45,X:3.65,'2':3.9},bookmaker:'Tipsport',
+   fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'},
+  {id:'real2',league:'pl',home:'Chelsea',away:'Fulham',kickoff:later,
+   odds:{'1':2.05,X:3.65,'2':4.7},bookmaker:'Tipsport',
+   fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}
+ ];
+ const unpaired=Array.from({length:13},(_,i)=>({
+  id:'unpaired'+i,league:'cz',home:'Unused Team '+i,away:'Away Team '+i,
+  kickoff:later,odds:{'1':2.1,X:3.2,'2':4.2},bookmaker:'Tipsport',
+  fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'
+ }));
+ t.ctx.receiveOdds(JSON.stringify({offers:[...valid,...unpaired],fetchedAt:new Date().toISOString()}));
+ assert.equal(t.controls['odds-total'].textContent,'15');
+ assert.equal(t.controls['odds-matched'].textContent,'2');
+ assert.ok(t.controls['auto-results'].innerHTML.includes('POUZE SIMULACE'),
+  t.controls['auto-results'].innerHTML.slice(0,1000));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('Uložit tento tiket nanečisto'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('Arsenal'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('Chelsea'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('Nepro'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('spárováno'));
+});
+test('three-leg longshot with only two verified matches explains why it cannot be created',()=>{
+ const t=makeDom(),later=new Date(Date.parse(t.upcoming)+3600000).toISOString();
+ t.controls['profile-longshot'].listeners.click();
+ const second={...event('Chelsea','Fulham',later),id:'s2'};
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
+ const offers=[
+  {id:'real1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+   odds:{'1':2.3,X:3.4,'2':3.2},bookmaker:'Tipsport',
+   fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'},
+  {id:'real2',league:'pl',home:'Chelsea',away:'Fulham',kickoff:later,
+   odds:{'1':2.3,X:3.4,'2':3.2},bookmaker:'Tipsport',
+   fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}
+ ];
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()}));
+ const html=t.controls['auto-results'].innerHTML;
+ assert.ok(html.includes('vyžaduje 3 různá ověřená utkání'),html);
+ assert.ok(!html.includes('POUZE SIMULACE'));
 });
