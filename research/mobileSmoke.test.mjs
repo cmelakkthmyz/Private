@@ -13,7 +13,9 @@ const makeDom=()=>{
   'manual-result','calc','refresh','data-attribution',
   'odds-status','odds-total','odds-matched','odds-updated',
   'profile-balanced','profile-longshot','profile-draws',
-  'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice'
+  'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
+  'paper-pending','paper-completed','paper-profit','paper-status',
+  'paper-create','paper-check','paper-history'
  ];
  const controls={};
  for(const id of ids)controls[id]={
@@ -27,7 +29,7 @@ const makeDom=()=>{
   console,URL,Intl,Date,Math,JSON,Array,Object,Number,String,Error,Boolean,Map,Set,Float64Array,
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
-  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');}},
+  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);}},
  };
  ctx.globalThis=ctx;ctx.window=ctx;
  const scope=vm.createContext(ctx);
@@ -191,4 +193,52 @@ test('offline/stale FPL snapshot is never used to claim current injuries',()=>{
   fetchedAt:old,source:'FPL'};
  t.ctx.receiveMatches(JSON.stringify({context:bad,events:[event('Arsenal','Liverpool',t.upcoming)]}),'pl');
  assert.ok(t.controls.coverage.textContent.includes('nejsou ověřené'));
+});
+
+test('paper lab is on screen and refuses to pretend to bet when market not loaded',()=>{
+ const t=makeDom();
+ assert.equal(t.controls['paper-pending'].textContent,'0');
+ assert.equal(t.controls['paper-completed'].textContent,'0');
+ assert.equal(t.controls['paper-create'].disabled,true);
+ t.controls['paper-create'].listeners.click();
+ assert.ok(t.controls['paper-status'].textContent.includes('ověřených'));
+ assert.equal(t.saved.get('sport-predictor-paper-v1'),undefined);
+});
+test('paper ticket is created from genuine matched quoted offers, stored in local phone journal',()=>{
+ const t=makeDom();
+ const second=event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+3600000).toISOString());
+ second.id='s2';
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
+ const offers=[
+  {id:'test-1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+   odds:{'1':2.4,X:3.4,'2':3.7},bookmaker:'Tipsport',fetchedAt:new Date().toISOString(),
+   sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'},
+  {id:'test-2',league:'pl',home:'Chelsea',away:'Fulham',
+   kickoff:new Date(Date.parse(t.upcoming)+3600000).toISOString(),
+   odds:{'1':2.4,X:3.4,'2':3.7},bookmaker:'Tipsport',fetchedAt:new Date().toISOString(),
+   sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}
+ ];
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()}));
+ assert.equal(t.controls['paper-create'].disabled,false);
+ t.controls['paper-create'].listeners.click();
+ const raw=t.saved.get('sport-predictor-paper-v1');
+ assert.ok(raw);
+ const stored=JSON.parse(raw);
+ assert.equal(stored.tickets.length,1);
+ assert.equal(stored.tickets[0].status,'pending');
+ assert.equal(stored.tickets[0].legs.length,2);
+ assert.equal(t.controls['paper-pending'].textContent,'1');
+ assert.ok(t.controls['paper-history'].innerHTML.includes('Tipsport')===false ||
+           t.controls['paper-history'].innerHTML.includes('nanečisto')===false ||
+           t.controls['paper-history'].innerHTML.includes('Nanečisto'));
+ // The same button must not double-count the same frozen market.
+ t.controls['paper-create'].listeners.click();
+ assert.equal(JSON.parse(t.saved.get('sport-predictor-paper-v1')).tickets.length,1);
+});
+test('paper result verification button invokes native all-league and hockey settlement checks',()=>{
+ const t=makeDom();
+ const before=t.calls.filter(x=>x==='all').length;
+ t.controls['paper-check'].listeners.click();
+ assert.ok(t.calls.filter(x=>x==='all').length>before);
+ assert.ok(t.controls['paper-status'].textContent.includes('Kontroluji'));
 });
