@@ -2,11 +2,11 @@
 <html lang="cs"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1323">
-<title>Premier League Predictor</title><link rel="stylesheet" href="style.css">
+<title>Sport Predictor AI – Premier League, Česko, extraliga</title><link rel="stylesheet" href="style.css">
 </head><body>
-<header><div class="wrap"><div class="eyebrow">PREMIER LEAGUE · ANDROID</div>
-<h1>Premier League <span>Predictor</span></h1>
-<p>Aktuální zápasy a odhady 1 / X / 2 z lokálního matematického modelu.</p></div></header>
+<header><div class="wrap"><div class="eyebrow">FOTBAL A HOKEJ · ANDROID</div>
+<h1>Sport <span>Predictor AI</span></h1>
+<p>Premier League, česká Chance Liga a hokejová extraliga. Průběžné učení ze skutečně vyhodnocených tipů.</p></div></header>
 <main class="wrap">
 <nav class="league-tabs" aria-label="Soutěž">
  <button type="button" id="league-pl" aria-pressed="true">Premier League</button>
@@ -22,6 +22,6 @@
 <div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
 <label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
 <button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
-<p class="fine" id="data-attribution">Rozpis a odehrané zápasy: ESPN (přes internet). Odhady počítá aplikace přímo v telefonu a nepoužívá Base44. Nejde o záruku výsledku ani sázkové doporučení.</p>
+<p class="fine" id="data-attribution">Zdroje: ESPN (fotbal), SazkyWeb.cz (hokej, CC BY 4.0), OpenFootball (historie, CC0). Pro hokej nejsou k dispozici individuální výsledky po 60 minutách, takže se historická přesnost zatím nedá spolehlivě ověřit. Nikdy nezadávej hesla k sázkovce do aplikace. Výsledky jsou odhady, nikoli záruka.</p>
 </main><script src="model.js"></script><script src="intelligence.js"></script><script src="czArchive.js"></script><script src="app.js"></script>
 </body></html>
