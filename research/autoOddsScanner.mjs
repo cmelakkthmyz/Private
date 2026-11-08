@@ -12,7 +12,7 @@ const aliases={
  'west ham':'west ham united','brighton hove albion':'brighton',
  'brighton and hove albion':'brighton','bournemouth':'bournemouth',
  'sparta prague':'sparta praha','slavia prague':'slavia praha',
- 'viktoria plzen':'plzen','slovan liberec':'slovan liberec',
+ 'viktoria plzen':'plzen','slovan liberec':'liberec','liberec':'liberec',
  'fastav zlin':'zlin','1 slovacko':'slovacko',
  'sigma olomouc':'olomouc','boleslav':'mlada boleslav',
  'zbrojovka':'zbrojovka brno','artis':'artis brno',
