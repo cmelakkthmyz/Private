@@ -24,8 +24,9 @@ jobs:
           node --check research/continualLearning.mjs
           node --check research/czechHistory.mjs
           node --check research/seasonalReplay.mjs
+          node --check research/hockeyV2.mjs
       - name: Invariant and anti-leakage tests
-        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs
+        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs
       - name: Historical out-of-sample backtest
         run: node research/walkForwardV2.mjs
       - name: Czech league audited historical replay and self-learning
