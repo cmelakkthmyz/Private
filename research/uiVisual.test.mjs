@@ -44,6 +44,7 @@ await page.addInitScript(()=>{
   odds:{'1':2.7,X:3.1,'2':3.2},fetchedAt:new Date().toISOString(),bookmaker:'Tipsport',
   sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}));
  const safeCall=(callback)=>setTimeout(callback,100);
+ let hasChanceApiKey=false;
  window.AndroidPredictor={
   loadFixtures(league){
    window.__leagueRequests=(window.__leagueRequests||0)+1;
@@ -57,7 +58,28 @@ await page.addInitScript(()=>{
    });
   },
   loadOdds(){window.__oddsRequests=(window.__oddsRequests||0)+1;
-   safeCall(()=>window.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()})));},
+   safeCall(()=>window.receiveOdds(JSON.stringify({
+    offers,fetchedAt:new Date().toISOString(),bookmaker:'Tipsport'}),'tipsport'));},
+  chanceKeyStatus(){
+   safeCall(()=>window.receiveChanceKeyStatus(hasChanceApiKey,
+    hasChanceApiKey?'Testovací šifrovaný klíč přítomen.':'Chybí PulseScore API klíč.'));
+  },
+  saveChanceApiKey(key){
+   hasChanceApiKey=key.length>=12;
+   safeCall(()=>window.receiveChanceKeyStatus(hasChanceApiKey,
+    hasChanceApiKey?'Testovací klíč uložen.':'Neplatný klíč.'));
+  },
+  clearChanceApiKey(){
+   hasChanceApiKey=false;
+   safeCall(()=>window.receiveChanceKeyStatus(false,'Klíč odebrán.'));
+  },
+  loadChanceOdds(){
+   window.__chanceRequests=(window.__chanceRequests||0)+1;
+   safeCall(()=>window.receiveOdds(JSON.stringify(
+    hasChanceApiKey?{bookmaker:'Chance',fetchedAt:new Date().toISOString(),
+     offers:offers.map(x=>({...x,bookmaker:'Chance',sourceUrl:'https://www.chance.cz/kurzy'}))}:
+     {error:'Chybí API klíč PulseScore.'}), 'chance'));
+  },
   loadPaperHockeyResults(dates){
    window.__hockeyCheckRequests=(window.__hockeyCheckRequests||0)+1;
    safeCall(()=>window.receivePaperHockeyResults(JSON.stringify({
@@ -171,12 +193,29 @@ try {
  const afterCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('sport-predictor-paper-v1'))?.tickets?.length||0);
  assert.equal(afterCount,beforeCount+1,'Experimental ticket save button must work');
 
+ // Chance integration is a one-time API key, not manual odds entry.
+ await page.locator('#odds-provider').selectOption('chance');
+ await page.waitForFunction(()=>document.querySelector('#odds-status')?.textContent.includes('klíč'),{timeout:15000});
+ assert.ok((await page.locator('#source-notice').innerText()).includes('Chance'));
+ await page.locator('#chance-api-settings').evaluate(el=>{el.open=true});
+ await page.locator('#chance-api-key').fill('example-public-api-key-for-ui-test');
+ await page.locator('#save-chance-key').click();
+ await page.waitForFunction(()=>document.querySelector('#odds-total')?.textContent==='7',{timeout:15000});
+ assert.ok((await page.locator('#odds-status').innerText()).includes('Chance'));
+ const storage=await page.evaluate(()=>Object.values(localStorage).join(' '));
+ assert.ok(!storage.includes('example-public-api-key-for-ui-test'),
+   'Sensitive provider API key must never be stored in the HTML JS layer');
+ await page.screenshot({path:'research/screenshots/android-chance-odds-provider.png',fullPage:true});
+ await page.locator('#odds-provider').selectOption('tipsport');
+ await page.waitForFunction(()=>document.querySelector('#odds-total')?.textContent==='7',{timeout:15000});
+ assert.ok((await page.locator('#source-notice').innerText()).includes('Tipsport'));
+
  const layout=await page.evaluate(()=>({bodyWidth:document.body.scrollWidth,screen:window.innerWidth,
    buttons:[...document.querySelectorAll('button')].map(x=>({id:x.id,width:Math.round(x.getBoundingClientRect().width)}))}));
  assert.ok(layout.bodyWidth<=layout.screen+6,'Horizontal overflow '+JSON.stringify(layout));
  assert.equal(errors.length,0,'Page JS errors: '+errors.join('; '));
  console.log('VISUAL_UI_SMOKE_PASSED',JSON.stringify({
-  screenshots:['android-paper-simulation-pl.png','android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png','android-remizy-15-offers-2-matches-fixed.png'],
+  screenshots:['android-paper-simulation-pl.png','android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png','android-remizy-15-offers-2-matches-fixed.png','android-chance-odds-provider.png'],
   oddsScanned:7,profileButtons:3,stakeButtons:3,leagueSwitches:3,buttonWidths:layout.buttons.length,
   pageErrors:errors.length,bodyWidth:layout.bodyWidth,mobileWidth:layout.screen}));
 }catch(e){console.error('VISUAL_UI_SMOKE_FAILED',String(e),errors);process.exitCode=1}
