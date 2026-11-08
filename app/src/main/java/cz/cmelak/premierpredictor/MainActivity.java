@@ -162,6 +162,24 @@ public final class MainActivity extends Activity {
 
     private String downloadUncachedFixtures(String league) throws Exception {
         if ("hockey".equals(league)) return downloadCzechHockey();
+        if ("cz".equals(league)) {
+            LocalDate local=LocalDate.now(ZoneId.of("Europe/Prague"));
+            int y=local.getMonthValue()>=7?local.getYear():local.getYear()-1;
+            String season=y+"-"+String.format(Locale.ROOT,"%02d",(y+1)%100);
+            String url="https://raw.githubusercontent.com/openfootball/europe/master/czech-republic/"
+                +season+"_cz1.txt";
+            String publishedResults=readRemote(url,"text/plain",1_400_000);
+            JSONObject currentOdds=null;
+            try {
+                String html=readRemote(PublicOdds.SOURCE_URL,"text/html",700_000);
+                currentOdds=PublicOdds.fromHtml(html,System.currentTimeMillis());
+            } catch(Exception ignored) {
+                // Previously published finished scores remain useful, but no
+                // future fixture is invented when fresh odds/schedule is absent.
+            }
+            return CzechLeagueFeed.parse(publishedResults,currentOdds,y,
+                java.time.Instant.now().toString()).toString();
+        }
         if ("pl".equals(league)) {
             try {
                 String bootstrap=readRemote(FplContext.BOOTSTRAP,"application/json",5_000_000);
