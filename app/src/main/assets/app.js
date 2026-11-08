@@ -241,6 +241,7 @@ function loadAutomaticOdds(refresh=true){
  if(refresh){oddsError='';$('odds-status').textContent='Procházím veřejnou denní nabídku Tipsportu…';}
  if(globalThis.AndroidPredictor?.loadOdds){
    globalThis.AndroidPredictor.loadOdds();
+   if(refresh&&globalThis.AndroidPredictor.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
  }else{
    oddsError='Načítání veřejných kurzů je dostupné v instalované Android aplikaci.';
    renderOdds();
@@ -297,7 +298,7 @@ function renderSchedule(events,receivedAt,cache=false){
   try{
    const forecast=futureForecast(m,parsed,state);
    ticketCandidates.push({id:m.id,home:m.home_team_name,away:m.away_team_name,
-    league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:true,
+    league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:current==='pl'&&Number(VALIDATED.comparison?.holdoutChosen?.n||0)>=350,
     pick:forecast.pick,probabilities:forecast.probabilities});
    return scoreCard(m.home_team_name,m.away_team_name,forecast,
     new Date(m.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
@@ -305,7 +306,7 @@ function renderSchedule(events,receivedAt,cache=false){
  }).join('')||'<div class="match">Žádné další zápasy ve vráceném programu.</div>';
  candidatesByLeague[current]=ticketCandidates.slice();
  renderOdds();
- status((cache?'Uložený rozpis':'ESPN rozpis')+' · '+incoming.length+' dalších zápasů · '+(changes?changes+' tipů vyhodnoceno · ':'')+
+ status((cache?'Uložený rozpis':'Ověřený rozpis')+' · '+incoming.length+' dalších zápasů · '+(changes?changes+' tipů vyhodnoceno · ':'')+
  'Aktualizace '+new Date(receivedAt).toLocaleString('cs-CZ'));
  renderCoverage(state);
 }
@@ -387,6 +388,63 @@ function fallback(message){
  status(message+' Ruční zápas funguje i bez připojení.',true);
  $('matches').innerHTML='';
 }
+// Scan all watched leagues, not only the currently selected tab.
+function collectCandidatesForLeague(league,payload){
+ if(!LEAGUES[league]||!payload||payload.error){
+  backgroundErrors[league]=payload?.error||'Data nedostupná';
+  candidatesByLeague[league]=[];return;
+ }
+ const before=current;current=league;
+ try{
+  if(league==='pl')acceptLiveContext(payload);
+  const now=Date.now(),chosen=[];
+  if(league==='hockey'){
+   if(!Array.isArray(payload.standings)||payload.standings.length<10)throw Error('Neověřená tabulka');
+   hockeyStandings=payload.standings;hockeyUpdated=payload.updated;
+   const games=payload.scheduleCurrent&&Array.isArray(payload.events)?payload.events:[];
+   const state=readState();
+   for(const e of games){
+    if(!e.date||Date.parse(e.date)<=now||!e.home||!e.away)continue;
+    const home=HOCK.hockeyTeamKey(e.home),away=HOCK.hockeyTeamKey(e.away);
+    const match={id:'cz_hockey_daily_'+e.id,kickoff:e.date,season:seasonOf(e.date),
+     home_team_id:home,away_team_id:away,home_team_name:home,
+     away_team_name:away,status:'scheduled',competition:'cz-hockey'};
+    const tip=futureForecast(match,[],state);
+    chosen.push({id:match.id,home,away,league,kickoff:match.kickoff,status:'scheduled',
+     modelVerified:false,probabilities:tip.probabilities,pick:tip.pick});
+   }
+  }else{
+   const rows=(payload.events||[]).map(eventFromEspn).filter(Boolean);
+   if(!rows.length)throw Error('Žádné ověřené zápasy');
+   const {state}=updateHistory(rows);
+   const future=rows.filter(x=>x.status!=='finished'&&Date.parse(x.kickoff)>now)
+     .sort((a,b)=>Date.parse(a.kickoff)-Date.parse(b.kickoff)).slice(0,80);
+   for(const m of future){
+    try{
+     const tip=futureForecast(m,rows,state);
+     chosen.push({id:m.id,home:m.home_team_name,away:m.away_team_name,league,
+      kickoff:m.kickoff,status:'scheduled',modelVerified:league==='pl'&&
+       Number(VALIDATED.comparison?.holdoutChosen?.n||0)>=350,
+      probabilities:tip.probabilities,pick:tip.pick});
+    }catch(e){}
+   }
+  }
+  candidatesByLeague[league]=chosen;
+  delete backgroundErrors[league];
+ }catch(e){
+  backgroundErrors[league]=e.message||'Chyba modelu';
+  candidatesByLeague[league]=[];
+ }finally{current=before}
+}
+globalThis.receiveAllLeagues=function(raw){
+ try{
+  const responses=JSON.parse(raw);
+  for(const league of ['pl','cz','hockey'])collectCandidatesForLeague(league,responses[league]);
+ }catch(e){backgroundErrors.system=e.message||'Neplatná data'}
+ renderOdds();
+ if(current==='pl')renderCoverage();
+};
+
 globalThis.receiveMatches=function(raw,requestedLeague){
  if(requestedLeague&&requestedLeague!==current)return;
  try{
@@ -454,5 +512,4 @@ try{
 }catch(e){}
 changeLeague('pl');
 loadAutomaticOdds(true);
-if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
 })();
