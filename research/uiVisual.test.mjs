@@ -128,12 +128,55 @@ try {
  await page.waitForFunction(()=>document.querySelector('#matches')?.textContent.includes('Třinec'),{timeout:15000});
  assert.equal(await page.locator('#league-hockey').getAttribute('aria-pressed'),'true');
  await page.screenshot({path:'research/screenshots/android-auto-odds-hockey.png',fullPage:true});
+ // Exact user-recording regression: 15 published offers but only 2 verified
+ // fixtures, Remízy should display a visible paper-only combination instead of blank.
+ await page.evaluate(()=>{
+  const now=new Date();
+  const future=h=>new Date(now.getTime()+h*3600000).toISOString();
+  const event=(id,home,away,at)=>({
+   id,date:at,status:{type:{completed:false,name:'STATUS_SCHEDULED'}},
+   competitions:[{competitors:[
+    {homeAway:'home',team:{displayName:home}},
+    {homeAway:'away',team:{displayName:away}}]}]});
+  const first=future(12),second=future(13),priceTime=new Date().toISOString();
+  window.receiveAllLeagues(JSON.stringify({
+   pl:{events:[event('991','Arsenal','Liverpool',first),
+    event('992','Chelsea','Fulham',second)]},
+   cz:{error:'No comparable schedule for this screen test'},
+   hockey:{error:'No comparable schedule for this screen test'}
+  }));
+  const offers=[
+   {id:'live991',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:first,
+    odds:{'1':2.3,X:3.45,'2':3.9},bookmaker:'Tipsport',
+    fetchedAt:priceTime,sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'},
+   {id:'live992',league:'pl',home:'Chelsea',away:'Fulham',kickoff:second,
+    odds:{'1':2.15,X:3.65,'2':4.2},bookmaker:'Tipsport',
+    fetchedAt:priceTime,sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'},
+   ...Array.from({length:13},(_,i)=>({id:'other'+i,league:'cz',
+    home:'Unknown Club '+i,away:'Another Club '+i,kickoff:second,
+    odds:{'1':2.4,X:3.1,'2':3.65},bookmaker:'Tipsport',
+    fetchedAt:priceTime,sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}))
+  ];
+  window.receiveOdds(JSON.stringify({offers,fetchedAt:priceTime}));
+ });
+ await page.locator('#profile-draws').click();
+ await page.waitForFunction(()=>document.querySelector('#odds-matched')?.textContent==='2',{timeout:12000});
+ assert.equal(await page.locator('#odds-total').innerText(),'15');
+ assert.ok((await page.locator('#auto-results').innerText()).includes('POUZE SIMULACE'));
+ assert.ok((await page.locator('#auto-results').innerText()).includes('Arsenal'));
+ assert.ok((await page.locator('#auto-results').innerText()).includes('Chelsea'));
+ await page.screenshot({path:'research/screenshots/android-remizy-15-offers-2-matches-fixed.png',fullPage:true});
+ const beforeCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('sport-predictor-paper-v1'))?.tickets?.length||0);
+ await page.locator('#auto-results .ticket-paper-action').first().click();
+ const afterCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('sport-predictor-paper-v1'))?.tickets?.length||0);
+ assert.equal(afterCount,beforeCount+1,'Experimental ticket save button must work');
+
  const layout=await page.evaluate(()=>({bodyWidth:document.body.scrollWidth,screen:window.innerWidth,
    buttons:[...document.querySelectorAll('button')].map(x=>({id:x.id,width:Math.round(x.getBoundingClientRect().width)}))}));
  assert.ok(layout.bodyWidth<=layout.screen+6,'Horizontal overflow '+JSON.stringify(layout));
  assert.equal(errors.length,0,'Page JS errors: '+errors.join('; '));
  console.log('VISUAL_UI_SMOKE_PASSED',JSON.stringify({
-  screenshots:['android-paper-simulation-pl.png','android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png'],
+  screenshots:['android-paper-simulation-pl.png','android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png','android-remizy-15-offers-2-matches-fixed.png'],
   oddsScanned:7,profileButtons:3,stakeButtons:3,leagueSwitches:3,buttonWidths:layout.buttons.length,
   pageErrors:errors.length,bodyWidth:layout.bodyWidth,mobileWidth:layout.screen}));
 }catch(e){console.error('VISUAL_UI_SMOKE_FAILED',String(e),errors);process.exitCode=1}
