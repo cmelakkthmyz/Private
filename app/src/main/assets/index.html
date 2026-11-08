@@ -22,19 +22,35 @@
 <div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
 <label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
 <button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
-<section class="manual">
- <h2>Analýza kombinovaného tiketu</h2>
- <p>Vyber dvě či tři různá utkání a ručně zadej aktuální kurzy Chance nebo Tipsportu. Porovnám je s odhadovanými pravděpodobnostmi. Bez přihlášení ke sázkovce a bez sázení.</p>
- <div class="controls"><label>Sázková kancelář
- <select id="ticket-bookmaker"><option value="Chance">Chance</option><option value="Tipsport">Tipsport</option><option value="Jiná">Jiná</option></select>
- </label><label>Počet zápasů
- <select id="ticket-count"><option value="2">2 zápasy</option><option value="3">3 zápasy</option></select></label></div>
- <div id="ticket-legs"></div>
- <label class="ticket-stake">Vklad pouze pro výpočet (Kč)
- <input type="number" id="ticket-stake" value="50" min="1" max="50000" step="1"></label>
- <button id="ticket-calc" class="wide" type="button">Porovnat pravděpodobnost a kurzy</button>
- <div id="ticket-result" aria-live="polite"></div>
- </section>
+<section class="ticket-studio" aria-labelledby="ticket-heading">
+ <div class="studio-head"><div>
+  <div class="eyebrow">AUTOMATICKÁ ANALÝZA KURZŮ</div>
+  <h2 id="ticket-heading">Hledač kombinací</h2>
+  <p>Žádné ruční kurzy. Načtu veřejnou nabídku Tipsportu, ověřím zápasy a srovnám ji s vlastními predikcemi.</p>
+ </div><span class="studio-chip">2–3 zápasy</span></div>
+ <div class="odds-status" id="odds-status" role="status" aria-live="polite">Připravuji automatické načtení kurzů…</div>
+ <div class="odds-metrics">
+  <div><span>Načtené kurzy</span><strong id="odds-total">–</strong></div>
+  <div><span>Ověřené zápasy</span><strong id="odds-matched">–</strong></div>
+  <div><span>Poslední kontrola</span><strong id="odds-updated">–</strong></div>
+ </div>
+ <h3>Způsob výběru</h3>
+ <div class="ticket-profiles" role="group" aria-label="Režim výběru kombinací">
+  <button id="profile-balanced" type="button" aria-pressed="true"><span class="p-name">Vyvážený</span><span class="p-sub">2 zápasy</span></button>
+  <button id="profile-longshot" type="button" aria-pressed="false"><span class="p-name">Vyšší kurz</span><span class="p-sub">3 zápasy</span></button>
+  <button id="profile-draws" type="button" aria-pressed="false"><span class="p-name">Remízy</span><span class="p-sub">včetně hokeje</span></button>
+ </div>
+ <div class="ticket-stakes"><span>Modelový vklad</span>
+ <div role="group" aria-label="Modelový vklad">
+  <button id="stake-10" aria-pressed="false" type="button">10 Kč</button>
+  <button id="stake-20" aria-pressed="true" type="button">20 Kč</button>
+  <button id="stake-50" aria-pressed="false" type="button">50 Kč</button>
+ </div></div>
+ <button id="scan-odds" class="wide scan-button" type="button"><span>Prohledat aktuální nabídku</span></button>
+ <div id="auto-results" aria-live="polite"></div>
+ <div class="source-notice" id="source-notice">Kurzy nejsou z účtu Chance ani Tipsport; jde o veřejně dostupné ranní hodnoty Tipsportu zveřejněné na SazkyWeb.cz. Nejde o živou garantovanou cenu.</div>
+</section>
+
 <p class="fine" id="data-attribution">Zdroje: ESPN (fotbal), SazkyWeb.cz (hokej, CC BY 4.0), OpenFootball (historie, CC0). Pro hokej nejsou k dispozici individuální výsledky po 60 minutách, takže se historická přesnost zatím nedá spolehlivě ověřit. Nikdy nezadávej hesla k sázkovce do aplikace. Výsledky jsou odhady, nikoli záruka.</p>
 </main><script src="model.js"></script><script src="intelligence.js"></script><script src="czArchive.js"></script><script src="app.js"></script>
 </body></html>
