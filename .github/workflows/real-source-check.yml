@@ -16,6 +16,9 @@ jobs:
           node-version: '22'
       - name: Probe public real-time football, hockey and bookmaker odds providers
         run: node research/liveSourceSmoke.mjs
+      - name: Inspect real Czech League finished-score sources
+        run: node research/probeCzechResults.mjs
+        continue-on-error: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
