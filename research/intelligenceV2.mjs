@@ -1,4 +1,5 @@
 import {assessMatchPriority} from './matchPriority.mjs';
+import {enhanceHistoricalGoals} from './extraHistorySignals.mjs';
 // Premier League Intelligence V2 — pure, deterministic, pre-match prediction engine.
 // Uses only events strictly before the forecast day; never current/final fixture statistics.
 // The model is deliberately auditable. Extra information is additive only when present.
@@ -188,6 +189,12 @@ export function predictIntelligence(fixture,matchList=[],context={}){
   goals.home=clamp(goals.home*Math.exp(priorityWeight*(relativeStakes-hRotation+.35*aRotation)),.18,4.8);
   goals.away=clamp(goals.away*Math.exp(priorityWeight*(-relativeStakes-aRotation+.35*hRotation)),.15,4.5);
   goals.features.matchPriority=priority;
+  if(cfg.useAdvancedHistory===true){
+    const historical=enhanceHistoricalGoals({home:goals.home,away:goals.away},matchList,fixture,cfg);
+    goals.home=historical.home;
+    goals.away=historical.away;
+    goals.features.additionalHistory=historical.signals;
+  }
   const goalsModel=poissonMatrix(goals.home,goals.away,clamp(num(cfg.rho,0),-.09,.09));
   const elo=eloModel(states.home.elo,states.away.elo,num(cfg.eloHome,75));
   const eloWeight=clamp(num(cfg.eloWeight,.25),0,1);
@@ -208,7 +215,7 @@ export function predictIntelligence(fixture,matchList=[],context={}){
     marketUsed:Boolean(market),marketWeight,features:goals.features,
     signalCoverage:{history:states.priorMatches,roster:goals.features.homeAvailability.available&&goals.features.awayAvailability.available,
       news:goals.features.homeNews.articles.length+goals.features.awayNews.articles.length,market:Boolean(market)},
-    model:'Intelligence V2',topScores:goalsModel.scores.sort((a,b)=>b.probability-a.probability).slice(0,5)};
+    model:cfg.useAdvancedHistory===true?'Intelligence V3':'Intelligence V2',topScores:goalsModel.scores.sort((a,b)=>b.probability-a.probability).slice(0,5)};
 }
 export const BASELINE_CONFIG=Object.freeze({prior:6,power:.83,eloK:23,eloWeight:.25,marketWeight:.5,
   rho:0,temperature:1,decayDays:105,priorityWeight:.45,homeBase:1.65,awayBase:1.32});
