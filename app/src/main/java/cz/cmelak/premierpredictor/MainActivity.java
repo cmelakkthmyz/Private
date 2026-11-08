@@ -163,6 +163,12 @@ public final class MainActivity extends Activity {
     private String downloadUncachedFixtures(String league) throws Exception {
         if ("hockey".equals(league)) return downloadCzechHockey();
         if ("cz".equals(league)) {
+            try{
+                return downloadCurrentCzechLeagueFromFACR();
+            }catch(Exception ignored){
+                // Last-resort historical archive. It can be stale; no score
+                // is manufactured when the authoritative current API is down.
+            }
             LocalDate local=LocalDate.now(ZoneId.of("Europe/Prague"));
             int y=local.getMonthValue()>=7?local.getYear():local.getYear()-1;
             String season=y+"-"+String.format(Locale.ROOT,"%02d",(y+1)%100);
@@ -225,6 +231,43 @@ public final class MainActivity extends Activity {
     }
 
 
+
+
+    private String downloadCurrentCzechLeagueFromFACR() throws Exception {
+        String endpoint=DenikCzechFeed.API;
+        String yearRaw=readRemote(endpoint+"competition-years/current","application/json",200_000);
+        JSONObject currentYear=new JSONObject(yearRaw);
+        int season=currentYear.optInt("year",0);
+        if(season<2020||season>2100)throw new IllegalArgumentException("Neznámý ročník");
+        String competitions=readRemote(endpoint+"competitions?year="+season+"&limit=1000",
+            "application/json",3_500_000);
+        JSONObject league=DenikCzechFeed.selectCurrentLeague(yearRaw,competitions);
+        String slug=league.getString("slug");
+        String suffix=slug+"/"+season;
+        JSONArray schedule=new JSONArray(readRemote(
+            endpoint+"round-score/"+suffix,"application/json",350_000));
+        JSONArray rounds=new JSONArray();
+        LocalDate local=LocalDate.now(ZoneId.of("Europe/Prague"));
+        HashSet<Integer> included=new HashSet<>();
+        for(int i=0;i<schedule.length();i++){
+            JSONObject row=schedule.optJSONObject(i);
+            if(row==null)continue;
+            int round=row.optInt("name",0);
+            if(round<1||round>50||!included.add(round))continue;
+            String date=row.optString("orientationDate","");
+            java.time.OffsetDateTime stamp;
+            try{stamp=java.time.OffsetDateTime.parse(date);}catch(Exception e){continue;}
+            if(stamp.toLocalDate().isAfter(local.plusDays(17)))continue;
+            try{
+                String url=endpoint+"matches/get-matches-in-round/"+suffix+
+                    "?roundName="+round;
+                JSONObject response=new JSONObject(readRemoteFast(url));
+                if(response.optJSONArray("matches")!=null)rounds.put(response);
+            }catch(Exception ignored){}
+        }
+        if(rounds.length()<6)throw new IllegalStateException("Aktuální kola nejsou dostupná");
+        return DenikCzechFeed.combine(rounds,slug,season,System.currentTimeMillis()).toString();
+    }
 
     // ESPN public, verified upcoming cup fixtures. A looming cup match is a
     // SMALL rotation risk signal, never a claim that a club intends to lose.
