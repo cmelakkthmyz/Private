@@ -43,11 +43,18 @@
     <option value="4">4 zápasy</option>
    </select>
   </label>
+  <label>Modelový vklad
+   <select id="model-ticket-stake">
+    <option value="10">10 Kč</option>
+    <option value="20" selected>20 Kč</option>
+    <option value="50">50 Kč</option>
+   </select>
+  </label>
  </div>
  <button id="model-ticket-refresh" type="button" class="wide scan-button">Znovu spočítat analýzy a tikety</button>
  <p id="model-ticket-status" class="odds-status" role="status" aria-live="polite">Načítám budoucí zápasy a sestavuji pravděpodobnosti…</p>
  <div id="model-ticket-results" aria-live="polite"></div>
- <p class="source-notice">Jde o modelové návrhy, nikoli automaticky vsazené tikety. Bez nezávisle ověřených kurzů se neuvádí finanční výhodnost ani smyšlená výplata. Hokejová remíza znamená stav po 60 minutách.</p>
+ <p class="source-notice">Jde o modelové návrhy, nikoli automaticky vsazené tikety. Bez nezávisle ověřených kurzů se neuvádí finanční výhodnost ani smyšlená výplata. Hokejová remíza znamená stav po 60 minutách. MAXIKOMBI je vlastní modelový rozpis a může se lišit od pravidel konkrétní sázkové kanceláře.</p>
 </section>
 <section id="paper-lab" class="paper-lab" aria-labelledby="paper-title">
  <div class="eyebrow">BEZ REÁLNÝCH PENĚZ</div>
