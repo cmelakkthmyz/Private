@@ -6,6 +6,7 @@ const fold=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
  .replace(/\s+/g,' ').trim();
 const aliases={
  'man city':'manchester city','man united':'manchester united','man utd':'manchester united',
+ 'manchester utd':'manchester united',
  'spurs':'tottenham hotspur','tottenham':'tottenham hotspur','newcastle':'newcastle united',
  'wolves':'wolverhampton wanderers','nottm forest':'nottingham forest',
  'west ham':'west ham united','brighton hove albion':'brighton',
