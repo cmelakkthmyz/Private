@@ -18,6 +18,8 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZoneId;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -126,7 +128,12 @@ public final class MainActivity extends Activity {
             try {
                 String bootstrap=readRemote(FplContext.BOOTSTRAP,"application/json",5_000_000);
                 String fixtures=readRemote(FplContext.FIXTURES,"application/json",3_000_000);
-                return FplContext.parse(bootstrap,fixtures,System.currentTimeMillis()).toString();
+                JSONObject parsed=FplContext.parse(bootstrap,fixtures,System.currentTimeMillis());
+                try{
+                    parsed.getJSONObject("context").put("futureCupFixtures",
+                        fetchVerifiedCupCalendar(parsed.getJSONObject("context").getJSONArray("teams")));
+                }catch(Exception ignored){}
+                return parsed.toString();
             } catch (Exception ignored) {
                 // A missing or temporarily blocked FPL endpoint must not stop
                 // Premier League results from being shown through ESPN.
@@ -161,6 +168,86 @@ public final class MainActivity extends Activity {
         }
     }
 
+
+
+    // ESPN public, verified upcoming cup fixtures. A looming cup match is a
+    // SMALL rotation risk signal, never a claim that a club intends to lose.
+    private JSONArray fetchVerifiedCupCalendar(JSONArray fplTeams) throws Exception {
+        HashSet<String> allowed=new HashSet<>();
+        for(int i=0;i<fplTeams.length();i++){
+            JSONObject t=fplTeams.optJSONObject(i);
+            if(t!=null)allowed.add(t.optString("name",""));
+        }
+        LocalDate today=LocalDate.now(ZoneOffset.UTC);
+        DateTimeFormatter fmt=DateTimeFormatter.BASIC_ISO_DATE;
+        String dates=fmt.format(today)+"-"+fmt.format(today.plusDays(28));
+        String[] cups={"uefa.champions","uefa.europa","uefa.europa.conf","eng.fa","eng.league_cup"};
+        String[] names={"Liga mistrů","Evropská liga","Konferenční liga","FA Cup","Ligový pohár"};
+        JSONArray out=new JSONArray();
+        for(int j=0;j<cups.length;j++){
+            String url="https://site.api.espn.com/apis/site/v2/sports/soccer/"+
+                cups[j]+"/scoreboard?dates="+dates+"&limit=250";
+            JSONObject json;
+            try{json=new JSONObject(readRemoteFast(url));}catch(Exception ex){continue;}
+            JSONArray events=json.optJSONArray("events");
+            if(events==null)continue;
+            for(int k=0;k<events.length();k++){
+                JSONObject ev=events.optJSONObject(k);
+                if(ev==null)continue;
+                String kickoff=ev.optString("date","");
+                long unixTime;
+                try{unixTime=java.time.Instant.parse(kickoff).toEpochMilli();}
+                catch(Exception ex){continue;}
+                if(unixTime<=System.currentTimeMillis())continue;
+                JSONArray competitions=ev.optJSONArray("competitions");
+                JSONObject comp=competitions!=null?competitions.optJSONObject(0):null;
+                JSONArray participants=comp!=null?comp.optJSONArray("competitors"):null;
+                if(participants==null)continue;
+                for(int q=0;q<participants.length();q++){
+                    JSONObject member=participants.optJSONObject(q);
+                    JSONObject club=member!=null?member.optJSONObject("team"):null;
+                    String name=club!=null?club.optString("displayName",""):"";
+                    name=canonicalCupClub(name);
+                    if(!allowed.contains(name))continue;
+                    String stage=ev.optString("name","").toLowerCase(Locale.ROOT);
+                    out.put(new JSONObject().put("team_id",name).put("kickoff",kickoff)
+                        .put("competition",names[j])
+                        .put("stage",stage.matches(".*(final|quarter|semi|round of).*")?
+                            "knockout":"unknown")
+                        .put("verified",true).put("source","ESPN cup calendar"));
+                }
+            }
+        }
+        return out;
+    }
+    private String canonicalCupClub(String club) {
+        if ("Man United".equals(club)||"Manchester United FC".equals(club))return "Manchester United";
+        if ("Man City".equals(club))return "Manchester City";
+        if ("Tottenham".equals(club)||"Spurs".equals(club))return "Tottenham Hotspur";
+        if ("Wolves".equals(club))return "Wolverhampton Wanderers";
+        if ("Brighton & Hove Albion".equals(club))return "Brighton";
+        if ("Newcastle".equals(club))return "Newcastle United";
+        if ("West Ham".equals(club))return "West Ham United";
+        if ("AFC Bournemouth".equals(club))return "Bournemouth";
+        return club.replaceAll(" FC$","");
+    }
+    private String readRemoteFast(String address) throws Exception {
+        HttpURLConnection conn=(HttpURLConnection)new URL(address).openConnection();
+        conn.setConnectTimeout(3500);conn.setReadTimeout(4000);
+        conn.setRequestProperty("Accept","application/json");
+        conn.setRequestProperty("User-Agent","SportPredictorAI/3.0 Android");
+        try{
+            if(conn.getResponseCode()!=200)throw new IllegalStateException("ESPN cup calendar not available");
+            try(InputStream input=conn.getInputStream(); ByteArrayOutputStream output=new ByteArrayOutputStream()){
+                byte[] buffer=new byte[8192];int n;
+                while((n=input.read(buffer))!=-1){
+                    if(output.size()+n>1_300_000)throw new IllegalStateException("ESPN cup response too large");
+                    output.write(buffer,0,n);
+                }
+                return output.toString("UTF-8");
+            }
+        }finally{conn.disconnect();}
+    }
 
     // CC BY 4.0 public Czech sports data. No bookmaker credentials required.
     // This feed is a daily schedule only; it does NOT contain final 60-minute results.
