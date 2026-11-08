@@ -43,6 +43,14 @@ public class ChanceOddsFeedTest {
         assertEquals("chance_soccer_456",item.getString("id"));
         assertTrue(item.getString("sourceProvider").contains("third-party"));
     }
+    @Test public void tipsportFeedUsesDifferentBookmakerAndEventNamespace()throws Exception{
+        JSONObject e=event("456","Chance Liga",market("FULL_TIME",true,true));
+        JSONObject parsed=ChanceOddsFeed.parse(pages(e),new JSONArray(),NOW,"Tipsport");
+        JSONObject offer=parsed.getJSONArray("offers").getJSONObject(0);
+        assertEquals("Tipsport",offer.getString("bookmaker"));
+        assertEquals("tipsport_soccer_456",offer.getString("id"));
+        assertEquals("https://www.tipsport.cz/kurzy",offer.getString("sourceUrl"));
+    }
     @Test public void premierLeagueAcceptsEnglishAndCzechLeagueNames()throws Exception{
         JSONObject p=ChanceOddsFeed.parse(pages(
           event("111","1. anglická liga",market("FULL_TIME",true,true)),
