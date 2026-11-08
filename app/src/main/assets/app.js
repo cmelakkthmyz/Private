@@ -398,6 +398,7 @@ function renderModelTickets(){
  if(!el||!info)return;
  const entries=Object.values(candidatesByLeague).flat();
  if(!entries.length){info.textContent='Čekám na první načtené zápasy. Placené API není potřeba.';el.innerHTML='';return;}
+ if(!MODEL_TICKETS?.buildModelTicketSuggestions){info.textContent='Chybí modul návrhu tiketů. Je nutná nová verze aplikace.';el.innerHTML='';return;}
  try{
   const freshApiPrice=oddsProvider!=='tipsport'&&oddsReceivedAt&&Date.now()-Date.parse(oddsReceivedAt)<5*60_000;
   const paired=freshApiPrice?bookmakerOffers.map(o=>AUTO.matchOffer(o,entries)).filter(Boolean):[];
@@ -406,15 +407,25 @@ function renderModelTickets(){
   const data=MODEL_TICKETS.buildModelTicketSuggestions(priced,{stake:ticketStake,maxMatches:modelTicketMax});
   const options=(modelTicketType==='auto'?data.alternatives:data.alternatives.filter(t=>t.type===modelTicketType)).slice(0,6);
   info.textContent='Model analyzoval '+data.fixturesEligible+' budoucích zápasů. '+data.basis+'.';
+ const recommended=options[0]||null;
+ const summary=recommended?'<div class="model-selection-note"><strong>'+
+ (modelTicketType==='auto'?'Automaticky vybraná varianta: ':'Zvolený typ: ')+escapeText(recommended.label)+
+ '</strong><p>'+(recommended.hasPrices?
+ 'Odhad pracuje s nejistými pravděpodobnostmi a kurzy, výdělek nezaručuje.':
+ 'Bez kurzů jde o výběr podle šance zásahu, nikoli podle výnosnosti.')+
+ ' Výpočet kombinací předpokládá přibližnou nezávislost utkání.</p></div>':'';
   if(!options.length){el.innerHTML='<div class="no-edges">Pro zvolený typ tiketu zatím není dost nezávislých zápasů. Zkus SOLO nebo přepni počet utkání.</div>';return;}
-  el.innerHTML=options.map(t=>{
+  el.innerHTML=summary+options.map((t,index)=>{
    const legs=t.legs.map((x,i)=>'<div class="model-leg"><strong class="model-letter">'+String.fromCharCode(65+i)+'</strong><div><strong>'+escapeText(x.home)+' – '+escapeText(x.away)+'</strong><small>'+
      escapeText(LEAGUES[x.league]?.title||x.league)+' · '+new Date(x.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
      '</small><small>1 '+pct(x.probabilities['1'])+' · X '+pct(x.probabilities.X)+' · 2 '+pct(x.probabilities['2'])+
-     '</small></div><span class="model-pick">'+escapeText(x.pick)+'<small>'+pct(x.probability)+'</small></span></div>').join('');
+     '</small><small>'+escapeText(x.xgHome!=null&&x.xgAway!=null?
+      'Očekávané góly: '+x.xgHome.toFixed(2)+' : '+x.xgAway.toFixed(2):x.explanation)+
+      '</small></div><span class="model-pick">'+escapeText(x.pick)+'<small>'+pct(x.probability)+'</small></span></div>').join('');
    const lines=t.rows.map(r=>'<tr><td>'+escapeText(r.description)+'</td><td>'+pct(r.probability)+'</td><td>'+
       (r.odds===null?'–':r.odds.toFixed(2)+'×')+'</td></tr>').join('');
-   return '<article class="auto-ticket model-ticket"><div class="ticket-head"><strong>'+escapeText(t.label)+'</strong><span>'+
+   return '<article class="auto-ticket model-ticket'+(index===0?' model-ticket-primary':'')+'"><div class="ticket-head"><strong>'+
+    (index===0?'PRVNÍ NÁVRH · ':'')+escapeText(t.label)+'</strong><span>'+
     t.lineCount+' řádků</span></div>'+legs+'<div class="ticket-prob-row"><span>Šance alespoň jednoho správného řádku</span><strong>'+
     pct(t.chanceAtLeastOne)+'</strong></div><p class="model-split">Modelový vklad: '+t.lineCount+' × '+
     t.stakePerRow.toFixed(2)+' Kč = '+t.totalStake.toFixed(2)+' Kč</p><p class="ticket-caveat">'+
@@ -666,7 +677,8 @@ function renderSchedule(events,receivedAt,cache=false){
    const forecast=futureForecast(m,parsed,state);
    ticketCandidates.push({id:m.id,home:m.home_team_name,away:m.away_team_name,
     league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:false,
-    pick:forecast.pick,probabilities:forecast.probabilities});
+    pick:forecast.pick,probabilities:forecast.probabilities,
+     xgHome:forecast.xgHome,xgAway:forecast.xgAway,explanation:forecast.explanation});
    return scoreCard(m.home_team_name,m.away_team_name,forecast,
     new Date(m.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
   }catch(e){return '<div class="match error">Předpověď není dostupná pro '+escapeText(m.home_team_name)+' – '+escapeText(m.away_team_name)+'</div>'}
@@ -701,7 +713,8 @@ function renderHockey(raw,fromCache=false){
    const forecast=futureForecast(fixture,[],state);
    ticketCandidates.push({id:fixture.id,home,away,
     league:'hockey',kickoff:fixture.kickoff,status:'scheduled',modelVerified:false,
-    pick:forecast.pick,probabilities:forecast.probabilities});
+    pick:forecast.pick,probabilities:forecast.probabilities,
+     xgHome:forecast.xgHome,xgAway:forecast.xgAway,explanation:forecast.explanation});
    return scoreCard(home,away,forecast,new Date(e.date).toLocaleString('cs-CZ',
     {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
   }catch(err){return '<article class="match error">Nelze spočítat zápas '+escapeText(home)+' – '+escapeText(away)+'</article>';}
@@ -778,7 +791,8 @@ function collectCandidatesForLeague(league,payload){
      away_team_name:away,status:'scheduled',competition:'cz-hockey'};
     const tip=futureForecast(match,[],state);
     chosen.push({id:match.id,home,away,league,kickoff:match.kickoff,status:'scheduled',
-     modelVerified:false,probabilities:tip.probabilities,pick:tip.pick});
+     modelVerified:false,probabilities:tip.probabilities,pick:tip.pick,
+     xgHome:tip.xgHome,xgAway:tip.xgAway,explanation:tip.explanation});
    }
   }else{
    const rows=(payload.events||[]).map(eventFromEspn).filter(Boolean);
@@ -792,7 +806,8 @@ function collectCandidatesForLeague(league,payload){
      const tip=futureForecast(m,rows,state);
      chosen.push({id:m.id,home:m.home_team_name,away:m.away_team_name,league,
       kickoff:m.kickoff,status:'scheduled',modelVerified:false,
-      probabilities:tip.probabilities,pick:tip.pick});
+      probabilities:tip.probabilities,pick:tip.pick,
+     xgHome:tip.xgHome,xgAway:tip.xgAway,explanation:tip.explanation});
     }catch(e){}
    }
   }
