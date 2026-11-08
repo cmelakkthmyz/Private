@@ -67,6 +67,7 @@ const result={
   '20 years of data does not prove 50%+ forecasting accuracy or betting profitability']
 };
 await mkdir('research/results',{recursive:true});
+await writeFile('research/results/openfootball-full.json',JSON.stringify(all));
 await writeFile('research/results/advanced-history-validation.json',JSON.stringify(result,null,2));
 await writeFile('app/src/main/assets/v3Validation.js',
  'globalThis.V3_VALIDATION='+JSON.stringify({
