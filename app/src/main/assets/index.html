@@ -41,17 +41,18 @@
  <div class="studio-head"><div>
   <div class="eyebrow">AUTOMATICKÁ ANALÝZA KURZŮ</div>
   <h2 id="ticket-heading">Hledač kombinací</h2>
-  <p>Bez ručního opisování kurzů: automaticky porovnám nabídku Chance nebo Tipsportu s predikcemi. Kurzy Chance vyžadují vlastní bezplatný API klíč PulseScore.</p>
+  <p>Bez ručního opisování kurzů: automaticky porovnám nabídku Chance nebo Tipsportu s predikcemi. Pro průběžné kurzy Tipsportu a Chance je nutný vlastní API klíč PulseScore a tarif odpovídající frekvenci aktualizací.</p>
  </div><span class="studio-chip">2–3 zápasy</span></div>
  <div class="odds-provider-settings">
   <label for="odds-provider"><strong>Zdroj kurzů</strong></label>
   <select id="odds-provider" aria-label="Zdroj kurzů">
-   <option value="tipsport">Tipsport – veřejný přehled (bez klíče)</option>
-   <option value="chance">Chance – ověřené API PulseScore</option>
+   <option value="tipsport">Tipsport – ranní přehled (bez klíče)</option>
+   <option value="tipsport-api">Tipsport – aktuální kurzy API PulseScore</option>
+   <option value="chance">Chance – aktuální kurzy API PulseScore</option>
   </select>
   <details id="chance-api-settings" class="chance-api-settings">
    <summary>Nastavit datový přístup ke kurzům Chance</summary>
-   <p>Chance neposkytuje dostupné veřejné API bez přihlášení. Používáme nezávislý PulseScore, který má bezplatný tarif BASIC (omezený počet dotazů). Potřebuješ pouze jeho API klíč, nikoli heslo ke svému účtu Chance.</p>
+   <p>Chance a Tipsport nevracejí aktuální data jako jednoduchou veřejnou HTML tabulku. Pro aktualizované ceny používáme PulseScore API. Bezplatný tarif BASIC má pouze 500 volání měsíčně, takže minutová aktualizace vyžaduje vhodný placený tarif. Nepoužívej heslo ke sázkové kanceláři.</p>
    <label for="chance-api-key">API klíč PulseScore</label>
    <input id="chance-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Klíč z pulsescore.net/dashboard"/>
    <div class="chance-key-buttons"><button type="button" id="save-chance-key">Uložit šifrovaně</button>
@@ -65,7 +66,7 @@
  <div class="odds-metrics">
   <div><span>Načtené kurzy</span><strong id="odds-total">–</strong></div>
   <div><span>Ověřené zápasy</span><strong id="odds-matched">–</strong></div>
-  <div><span>Poslední kontrola</span><strong id="odds-updated">–</strong></div>
+  <div><span>Poslední stažení (ne změna kurzu)</span><strong id="odds-updated">–</strong></div>
  </div>
  <h3>Způsob výběru</h3>
  <div class="ticket-profiles" role="group" aria-label="Režim výběru kombinací">
