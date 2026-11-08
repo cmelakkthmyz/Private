@@ -183,3 +183,8 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .model-ticket th,.model-ticket td{padding:8px;text-align:left;border-bottom:1px solid #305267}
 .model-ticket td:nth-child(n+2),.model-ticket th:nth-child(n+2){text-align:right}
 @media(max-width:370px){.model-ticket-controls{grid-template-columns:1fr}}
+
+.model-selection-note{margin:14px 0 12px;border:1px solid #467783;background:#143544;border-radius:12px;padding:12px 14px}
+.model-selection-note strong{display:block;font-size:15px;color:#c5f4e5}
+.model-selection-note p{font-size:12px;color:#c1d6df;line-height:1.5;margin:7px 0 0}
+.model-ticket-primary{border:2px solid #74e6ba}
