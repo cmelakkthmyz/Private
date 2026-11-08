@@ -14,6 +14,7 @@ import java.util.Locale;
  */
 public final class ChanceOddsFeed {
     public static final String API="https://api.pulsescore.net/api/chance/";
+    public static final String TIPSPORT_API="https://api.pulsescore.net/api/tipsport/";
     private ChanceOddsFeed(){}
 
     private static String fold(String text) {
@@ -39,6 +40,15 @@ public final class ChanceOddsFeed {
         return null;
     }
     public static JSONObject parse(JSONArray soccerPages, JSONArray hockeyPages, long nowMs) throws Exception {
+        return parse(soccerPages,hockeyPages,nowMs,"Chance");
+    }
+    public static JSONObject parse(JSONArray soccerPages, JSONArray hockeyPages, long nowMs,
+                                   String bookmaker) throws Exception {
+        if (!"Chance".equals(bookmaker) && !"Tipsport".equals(bookmaker))
+            throw new IllegalArgumentException("Nepodporovaná sázková kancelář");
+        final String sourceUrl="Chance".equals(bookmaker) ?
+            "https://www.chance.cz/kurzy" : "https://www.tipsport.cz/kurzy";
+        final String prefix=bookmaker.toLowerCase(Locale.ROOT);
         JSONArray offers=new JSONArray();
         HashSet<String> used=new HashSet<>();
         int seen=0,matchedLeague=0,badMarkets=0;
@@ -104,14 +114,14 @@ public final class ChanceOddsFeed {
                         String signature=sport+"|"+id+"|"+period;
                         if(!used.add(signature))continue;
                         offers.put(new JSONObject()
-                            .put("id","chance_"+sport+"_"+id)
+                            .put("id",prefix+"_"+sport+"_"+id)
                             .put("league",league)
                             .put("market","hockey".equals(league)?"1X2_60_MINUTES":"1X2_90_MINUTES")
                             .put("kickoff",Instant.ofEpochMilli(kickoff).toString())
                             .put("home",home).put("away",away)
                             .put("odds",prices)
-                            .put("bookmaker","Chance")
-                            .put("sourceUrl","https://www.chance.cz/kurzy")
+                            .put("bookmaker",bookmaker)
+                            .put("sourceUrl",sourceUrl)
                             .put("sourceProvider","PulseScore third-party data API")
                             .put("fetchedAt",Instant.ofEpochMilli(nowMs).toString()));
                         break;
@@ -124,9 +134,9 @@ public final class ChanceOddsFeed {
         result.put("totalScanned",seen);
         result.put("matchedLeagues",matchedLeague);
         result.put("invalidMarkets",badMarkets);
-        result.put("source","Chance via PulseScore, third-party feed (not official Chance API)");
-        result.put("bookmaker","Chance");
-        result.put("sourceUrl","https://www.chance.cz/kurzy");
+        result.put("source",bookmaker+" via PulseScore, third-party feed (not official bookmaker API)");
+        result.put("bookmaker",bookmaker);
+        result.put("sourceUrl",sourceUrl);
         result.put("fetchedAt",Instant.ofEpochMilli(nowMs).toString());
         result.put("notice","Předzápasové kurzy z nezávislého datového prostředníka. Jejich aktuální dostupnost a platnost se může změnit. Nejde o přímé čtení účtu Chance.");
         return result;
