@@ -62,8 +62,10 @@ public final class MainActivity extends Activity {
                     try {
                         responses.put(league, new JSONObject(downloadFixtures(league)));
                     } catch (Exception e) {
-                        responses.put(league, new JSONObject().put("error",
-                            "Soutěž " + league + ": " + e.getMessage()));
+                        try {
+                            responses.put(league, new JSONObject().put("error",
+                                "Soutěž " + league + ": " + e.getMessage()));
+                        } catch (Exception ignored) {}
                     }
                 }
                 final String result = responses.toString();
