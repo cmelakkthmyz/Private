@@ -19,6 +19,7 @@ import java.time.ZoneOffset;
 import java.time.ZoneId;
 import java.time.LocalTime;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,6 +28,8 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicInteger requestSerial = new AtomicInteger(0);
+    private final ConcurrentHashMap<String, String> cachedFeeds = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> cachedTimes = new ConcurrentHashMap<>();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -50,6 +53,25 @@ public final class MainActivity extends Activity {
     }
 
     private final class Bridge {
+        @JavascriptInterface public void loadAllLeagues() {
+            executor.execute(() -> {
+                JSONObject responses = new JSONObject();
+                for (String league : new String[]{"pl", "cz", "hockey"}) {
+                    try {
+                        responses.put(league, new JSONObject(downloadFixtures(league)));
+                    } catch (Exception e) {
+                        responses.put(league, new JSONObject().put("error",
+                            "Soutěž " + league + ": " + e.getMessage()));
+                    }
+                }
+                final String result = responses.toString();
+                runOnUiThread(() -> {
+                    if (webView != null) webView.evaluateJavascript(
+                        "window.receiveAllLeagues(" + JSONObject.quote(result) + ");", null);
+                });
+            });
+        }
+
         @JavascriptInterface public void loadOdds() {
             executor.execute(() -> {
                 String payload;
@@ -86,8 +108,30 @@ public final class MainActivity extends Activity {
     }
 
     private String downloadFixtures(String league) throws Exception {
+        if (!"pl".equals(league) && !"cz".equals(league) && !"hockey".equals(league))
+            throw new IllegalArgumentException("Neznámá soutěž");
+        Long timestamp=cachedTimes.get(league);
+        String cached=cachedFeeds.get(league);
+        if (cached != null && timestamp != null && System.currentTimeMillis()-timestamp < 10*60_000L)
+            return cached;
+        String data=downloadUncachedFixtures(league);
+        cachedFeeds.put(league,data);
+        cachedTimes.put(league,System.currentTimeMillis());
+        return data;
+    }
+
+    private String downloadUncachedFixtures(String league) throws Exception {
         if ("hockey".equals(league)) return downloadCzechHockey();
-        if (!"pl".equals(league) && !"cz".equals(league)) throw new IllegalArgumentException("Neznámá soutěž");
+        if ("pl".equals(league)) {
+            try {
+                String bootstrap=readRemote(FplContext.BOOTSTRAP,"application/json",5_000_000);
+                String fixtures=readRemote(FplContext.FIXTURES,"application/json",3_000_000);
+                return FplContext.parse(bootstrap,fixtures,System.currentTimeMillis()).toString();
+            } catch (Exception ignored) {
+                // A missing or temporarily blocked FPL endpoint must not stop
+                // Premier League results from being shown through ESPN.
+            }
+        }
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         int season = today.getMonthValue() >= 7 ? today.getYear() : today.getYear()-1;
         String dates = season + "0801-" + (season+1) + "0630";
@@ -172,6 +216,10 @@ public final class MainActivity extends Activity {
     }
 
     private String readRemote(String address, String accept) throws Exception {
+        return readRemote(address, accept, 2_000_000);
+    }
+
+    private String readRemote(String address, String accept, int maxBytes) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(address).openConnection();
         conn.setConnectTimeout(11000);
         conn.setReadTimeout(14000);
@@ -184,7 +232,7 @@ public final class MainActivity extends Activity {
                 byte[] buf = new byte[8192];
                 int n;
                 while ((n = in.read(buf)) != -1) {
-                    if (out.size() + n > 2_000_000) throw new IllegalStateException("Velikost sportovních dat překročena");
+                    if (out.size() + n > maxBytes) throw new IllegalStateException("Velikost sportovních dat překročena");
                     out.write(buf, 0, n);
                 }
                 return out.toString("UTF-8");
