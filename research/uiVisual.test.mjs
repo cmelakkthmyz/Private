@@ -41,7 +41,8 @@ await page.addInitScript(()=>{
   ['cz','Sparta Praha','Slavia Praha',12],['cz','Viktoria Plzeň','Baník Ostrava',13],
   ['hockey','Třinec','Olomouc',12],['hockey','Pardubice','Kometa Brno',13]
  ].map(([league,home,away,h],i)=>({id:String(600+i),league,home,away,kickoff:future(h),
-  odds:{'1':2.7,X:3.1,'2':3.2},fetchedAt:new Date().toISOString(),bookmaker:'Tipsport'}));
+  odds:{'1':2.7,X:3.1,'2':3.2},fetchedAt:new Date().toISOString(),bookmaker:'Tipsport',
+  sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'}));
  const safeCall=(callback)=>setTimeout(callback,100);
  window.AndroidPredictor={
   loadFixtures(league){
@@ -57,6 +58,11 @@ await page.addInitScript(()=>{
   },
   loadOdds(){window.__oddsRequests=(window.__oddsRequests||0)+1;
    safeCall(()=>window.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()})));},
+  loadPaperHockeyResults(dates){
+   window.__hockeyCheckRequests=(window.__hockeyCheckRequests||0)+1;
+   safeCall(()=>window.receivePaperHockeyResults(JSON.stringify({
+    results:[],unavailableDates:JSON.parse(dates),checkedAt:new Date().toISOString()})));
+  },
   loadAllLeagues(){
    window.__fullScanRequests=(window.__fullScanRequests||0)+1;
    const names=['Arsenal','Liverpool','Brentford','Chelsea','Fulham','Everton','Manchester City',
@@ -103,6 +109,16 @@ try {
  await mkdir('research/screenshots',{recursive:true});
  await page.locator('.factor-list summary').first().click();
  assert.ok(await page.locator('.factor-list li').first().isVisible());
+ assert.equal(await page.locator('#paper-create').isDisabled(),false);
+ await page.locator('#paper-create').click();
+ await page.waitForFunction(()=>document.querySelector('#paper-pending')?.textContent==='1',{timeout:15000});
+ assert.ok(await page.locator('#paper-history').innerText().then(x=>x.includes('Čeká na výsledky')));
+ const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('sport-predictor-paper-v1')));
+ assert.equal(saved.tickets.length,1);
+ assert.ok(saved.tickets[0].legs.every(x=>x.status==='pending'));
+ await page.locator('#paper-check').click();
+ await page.waitForFunction(()=>window.__fullScanRequests>=2,{timeout:12000});
+ await page.screenshot({path:'research/screenshots/android-paper-simulation-pl.png',fullPage:true});
  await page.screenshot({path:'research/screenshots/android-auto-odds-pl.png',fullPage:true});
  await page.locator('#league-cz').click();
  await page.waitForFunction(()=>document.querySelector('#matches')?.textContent.includes('Sparta Praha'),{timeout:15000});
@@ -117,7 +133,7 @@ try {
  assert.ok(layout.bodyWidth<=layout.screen+6,'Horizontal overflow '+JSON.stringify(layout));
  assert.equal(errors.length,0,'Page JS errors: '+errors.join('; '));
  console.log('VISUAL_UI_SMOKE_PASSED',JSON.stringify({
-  screenshots:['android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png'],
+  screenshots:['android-paper-simulation-pl.png','android-auto-odds-pl.png','android-auto-odds-cz.png','android-auto-odds-hockey.png'],
   oddsScanned:7,profileButtons:3,stakeButtons:3,leagueSwitches:3,buttonWidths:layout.buttons.length,
   pageErrors:errors.length,bodyWidth:layout.bodyWidth,mobileWidth:layout.screen}));
 }catch(e){console.error('VISUAL_UI_SMOKE_FAILED',String(e),errors);process.exitCode=1}
