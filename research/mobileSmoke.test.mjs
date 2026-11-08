@@ -10,7 +10,8 @@ const makeDom=()=>{
  const ids=[
   'league-pl','league-cz','league-hockey','coverage','match-title','status','matches',
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
-  'manual-result','calc','refresh','data-attribution'
+  'manual-result','calc','refresh','data-attribution',
+  'ticket-bookmaker','ticket-count','ticket-legs','ticket-stake','ticket-calc','ticket-result'
  ];
  const controls={};
  for(const id of ids)controls[id]={
@@ -53,6 +54,8 @@ test('home page starts with Premier League and requests its actual fixtures',()=
  assert.ok(t.controls.matches.innerHTML.includes('Arsenal'));
  assert.ok(t.controls.matches.innerHTML.includes('Liverpool'));
  assert.ok(t.controls.matches.innerHTML.includes('Tip 1 / X / 2'));
+ assert.ok(t.controls['ticket-legs'].innerHTML.includes('ticket-match-0'));
+
  const state=JSON.parse(t.saved.get('premier-intelligence-online-v1:pl-football'));
  assert.equal(state.events.length,1);
  assert.equal(state.accuracy.settled,0);
