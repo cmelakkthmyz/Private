@@ -338,7 +338,7 @@ function officialFootballResults(league,events){
   valid.push({matchId:league+'_espn_'+String(e.id),league,
    home:canonical(home.team?.displayName),away:canonical(away.team?.displayName),
    kickoff,status:'finished',homeScore:h,awayScore:a,market:'1X2_90_MINUTES',
-   source:league==='pl'?'Fantasy Premier League / ESPN':'OpenFootball CC0 Czech results',
+   source:league==='pl'?'Fantasy Premier League / ESPN':String(e.id||'').startsWith('FACR_')?'FAČR / Deník aktuální výsledky':'OpenFootball CC0 Czech archiv',
    observedAt:new Date().toISOString()});
  }
  return valid;
