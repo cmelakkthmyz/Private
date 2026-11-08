@@ -163,7 +163,7 @@ public final class MainActivity extends Activity {
                 final String result=payload;
                 runOnUiThread(()->{
                     if(webView!=null)webView.evaluateJavascript(
-                        "window.receiveOdds("+JSONObject.quote(result)+");",null);
+                        "window.receiveOdds("+JSONObject.quote(result)+",\"chance\");",null);
                 });
             });
         }
@@ -180,7 +180,7 @@ public final class MainActivity extends Activity {
                 final String result = payload;
                 runOnUiThread(() -> {
                     if (webView != null) webView.evaluateJavascript(
-                        "window.receiveOdds(" + JSONObject.quote(result) + ");", null);
+                        "window.receiveOdds(" + JSONObject.quote(result) + ",\"tipsport\");", null);
                 });
             });
         }
