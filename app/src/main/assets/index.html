@@ -20,6 +20,23 @@
  <a href="#games"><span>Zápasy</span></a>
  <a href="#own-match"><span>Vlastní zápas</span></a>
 </nav>
+<section id="paper-lab" class="paper-lab" aria-labelledby="paper-title">
+ <div class="eyebrow">BEZ REÁLNÝCH PENĚZ</div>
+ <h2 id="paper-title">Tiket nanečisto · průběžné učení</h2>
+ <p>Aplikace vybere kombinaci ze skutečně načtených předzápasových kurzů. Uloží ji do telefonu, při příštím otevření ověří konečné výsledky, spočítá modelový zisk nebo ztrátu a zapracuje chyby do další předpovědi.</p>
+ <div class="paper-overview">
+  <div><span>Čeká na zápasy</span><strong id="paper-pending">0</strong></div>
+  <div><span>Vyhodnoceno</span><strong id="paper-completed">0</strong></div>
+  <div><span>Modelový výsledek</span><strong id="paper-profit">0 Kč</strong></div>
+ </div>
+ <div id="paper-status" class="odds-status" role="status" aria-live="polite">Čekám na dostupné dnešní kurzy a zápasy.</div>
+ <div class="paper-actions">
+  <button id="paper-create" type="button">Uložit nový tiket nanečisto</button>
+  <button id="paper-check" type="button">Ověřit dohrané zápasy</button>
+ </div>
+ <div id="paper-history" aria-live="polite"></div>
+ <p class="source-notice">Pouze simulace. Žádná platba, žádné přihlášení ani skutečné vsazení. U hokeje se remíza vyhodnocuje výhradně po 60 minutách; bez ověřeného rozpisu třetin zůstane zápas nevyhodnocený. Kontrola probíhá po otevření aplikace nebo tlačítkem.</p>
+</section>
 <section id="auto-tickets" class="ticket-studio" aria-labelledby="ticket-heading">
  <div class="studio-head"><div>
   <div class="eyebrow">AUTOMATICKÁ ANALÝZA KURZŮ</div>
@@ -62,23 +79,7 @@
  </div>
 </details>
 </section>
-<section id="paper-lab" class="paper-lab" aria-labelledby="paper-title">
- <div class="eyebrow">BEZ REÁLNÝCH PENĚZ</div>
- <h2 id="paper-title">Tiket nanečisto · průběžné učení</h2>
- <p>Aplikace vybere kombinaci ze skutečně načtených předzápasových kurzů. Uloží ji do telefonu, při příštím otevření ověří konečné výsledky, spočítá modelový zisk nebo ztrátu a zapracuje chyby do další předpovědi.</p>
- <div class="paper-overview">
-  <div><span>Čeká na zápasy</span><strong id="paper-pending">0</strong></div>
-  <div><span>Vyhodnoceno</span><strong id="paper-completed">0</strong></div>
-  <div><span>Modelový výsledek</span><strong id="paper-profit">0 Kč</strong></div>
- </div>
- <div id="paper-status" class="odds-status" role="status" aria-live="polite">Čekám na dostupné dnešní kurzy a zápasy.</div>
- <div class="paper-actions">
-  <button id="paper-create" type="button">Uložit nový tiket nanečisto</button>
-  <button id="paper-check" type="button">Ověřit dohrané zápasy</button>
- </div>
- <div id="paper-history" aria-live="polite"></div>
- <p class="source-notice">Pouze simulace. Žádná platba, žádné přihlášení ani skutečné vsazení. U hokeje se remíza vyhodnocuje výhradně po 60 minutách; bez ověřeného rozpisu třetin zůstane zápas nevyhodnocený. Kontrola probíhá po otevření aplikace nebo tlačítkem.</p>
-</section>
+
 
 <section id="games" class="toolbar"><div><h2 id="match-title">Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
 <div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
