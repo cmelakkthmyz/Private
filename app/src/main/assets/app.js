@@ -846,4 +846,46 @@ changeLeague('pl');
 renderPaper();
 loadAutomaticOdds(true);
 requestHockeyPaperResults();
+
+// Persistent foreground refresh. The WebView is kept alive while the app is
+// visible; reopening the screen triggers a fresh network request immediately.
+const AUTO_SCAN_EVERY_MS=60_000;
+let autoForeground=true,autoScanAt=Date.now(),autoScanPending=false;
+function updateAutoStatus(){
+ const el=$('auto-refresh-status');if(!el)return;
+ const isPublic=oddsProvider==='tipsport';
+ el.textContent=!autoForeground?'Obnovování pozastaveno (aplikace na pozadí)':
+  (autoScanPending?'Kontroluji aktuální zápasy a kurzy…':
+  'Automatická kontrola každých 60 sekund při otevřené aplikaci.')+
+  (isPublic?' Veřejný zdroj vydává kurzy pouze ráno; tento interval NEZNAMENÁ nové ceny.':
+  ' API může omezit četnost podle tarifu.');
+}
+function autoScan(force=false){
+ if(!autoForeground||(typeof document.visibilityState==='string'&&document.visibilityState==='hidden'))return;
+ const now=Date.now();
+ if(autoScanPending&&now-autoScanAt<180_000)return;
+ if(!force&&now-autoScanAt<AUTO_SCAN_EVERY_MS)return;
+ autoScanPending=true;autoScanAt=now;
+ loadAutomaticOdds(true);
+ updateAutoStatus();
+}
+const originalOddsReceiver=globalThis.receiveOdds;
+globalThis.receiveOdds=function(raw,provider){
+ if(!provider||provider===oddsProvider)autoScanPending=false;
+ originalOddsReceiver(raw,provider);
+ updateAutoStatus();
+};
+globalThis.sportPredictorOnPause=()=>{autoForeground=false;updateAutoStatus();};
+globalThis.sportPredictorOnResume=()=>{
+ autoForeground=true;
+ autoScan(true);
+ updateAutoStatus();
+};
+if(typeof document.addEventListener==='function')
+ document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')globalThis.sportPredictorOnPause();
+  else globalThis.sportPredictorOnResume();
+ });
+if(typeof setInterval==='function')setInterval(()=>{autoScan();updateAutoStatus();},15_000);
+updateAutoStatus();
 })();
