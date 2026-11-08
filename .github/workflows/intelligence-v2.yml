@@ -2,6 +2,8 @@ name: Premier League Intelligence V2 Backtest
 on:
   push:
     branches: [premier-league-model-v2]
+  pull_request:
+    branches: [premier-league-android]
   workflow_dispatch:
 jobs:
   validation:
