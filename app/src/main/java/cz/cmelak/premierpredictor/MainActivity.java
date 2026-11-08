@@ -46,12 +46,12 @@ public final class MainActivity extends Activity {
     }
 
     private final class Bridge {
-        @JavascriptInterface public void loadFixtures() {
+        @JavascriptInterface public void loadFixtures(String league) {
             if (!loading.compareAndSet(false, true)) return;
             executor.execute(() -> {
                 String json;
                 try {
-                    json = downloadFixtures();
+                    json = downloadFixtures(league);
                 } catch (Exception e) {
                     json = "{\"error\":" + JSONObject.quote("Načítání ESPN selhalo: " + e.getMessage()) + "}";
                 } finally {
@@ -66,11 +66,13 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private String downloadFixtures() throws Exception {
+    private String downloadFixtures(String league) throws Exception {
+        if (!"pl".equals(league) && !"cz".equals(league)) throw new IllegalArgumentException("Neznámá soutěž");
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         int season = today.getMonthValue() >= 7 ? today.getYear() : today.getYear()-1;
         String dates = season + "0801-" + (season+1) + "0630";
-        URL url = new URL("https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=" + dates + "&limit=500");
+        String competition = "cz".equals(league) ? "cze.1" : "eng.1";
+        URL url = new URL("https://site.api.espn.com/apis/site/v2/sports/soccer/" + competition + "/scoreboard?dates=" + dates + "&limit=500");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(12000);
