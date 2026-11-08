@@ -1,3 +1,4 @@
+import {emptyPaperLedger,checkPaperLedger,proposePaperTicket,placePaperTicket,settlePaperTickets,paperSummary} from './paperSimulation.mjs';
 import {buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES} from './autoOddsScanner.mjs';
 import {evaluateCombo} from './ticketEvaluator.mjs';
 // Compiled by CI as a standalone browser asset. No accounts, tokens, or backend needed.
@@ -12,3 +13,5 @@ globalThis.HockeyModel={hockeyStandingsProfile,hockeyFixtureRates,calibrateRegul
 globalThis.TicketCalculator={evaluateCombo};
 
 globalThis.AutoOdds={buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES};
+
+globalThis.PaperBet={emptyPaperLedger,checkPaperLedger,proposePaperTicket,placePaperTicket,settlePaperTickets,paperSummary};
