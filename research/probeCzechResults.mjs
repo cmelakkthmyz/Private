@@ -66,3 +66,15 @@ for(const suffix of ['competitions?year=2026&limit=1000',
     year:x.competitionYear?.year,type:x.type?.name}))}));
  }catch(e){console.log('DENIK_CURRENT_TOP_ERROR',suffix,String(e).slice(0,130))}
 }
+
+for(const suffix of ['competition/chance-liga-2026-2/2026',
+ 'seasons/chance-liga-2026-2/2026','round-score/chance-liga-2026-2/2026',
+ 'matches/get-matches-in-round/chance-liga-2026-2/2026',
+ 'standing/chance-liga-2026-2/2026']){
+ try{
+  const r=await fetch(root+suffix,{signal:AbortSignal.timeout(10000)});
+  const tx=await r.text();let j;try{j=JSON.parse(tx);}catch{}
+  console.log('DENIK_LIGA_LIVE',JSON.stringify({suffix,status:r.status,len:tx.length,
+   data:JSON.stringify(j||tx).slice(0,5500)}));
+ }catch(e){console.log('DENIK_LIGA_LIVE_ERROR',suffix,String(e).slice(0,170))}
+}
