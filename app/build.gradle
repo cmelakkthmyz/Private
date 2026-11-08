@@ -3,7 +3,7 @@ android {
     namespace 'cz.cmelak.premierpredictor'
     compileSdk 35
     defaultConfig {
-        applicationId 'cz.cmelak.premierpredictor'
+        applicationId 'cz.cmelak.sportpredictor.v3'
         minSdk 26
         targetSdk 35
         versionCode 7
