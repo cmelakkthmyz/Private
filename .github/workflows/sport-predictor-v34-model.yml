@@ -5,7 +5,7 @@ on:
     paths:
       - "app/**"
       - "research/**"
-      - ".github/workflows/sport-predictor-v33-apk.yml"
+      - ".github/workflows/sport-predictor-v34-model.yml"
   workflow_dispatch:
 jobs:
   build-apk:
