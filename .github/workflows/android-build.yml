@@ -26,6 +26,15 @@ jobs:
           if [ -f research/hockeyV2.mjs ]; then node --check research/hockeyV2.mjs && node --check research/ticketEvaluator.mjs && node --check research/autoOddsScanner.mjs; fi
           node --test test/model.test.cjs
           if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs research/advancedHistory.test.mjs research/paperSimulation.test.mjs; fi
+      - name: Real internet check of current FPL, Czech football, hockey and published odds
+        run: node research/liveSourceSmoke.mjs
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-sport-sources-diagnostic
+          path: research/results/live-source-check.json
+          if-no-files-found: warn
       - name: Audited 21-season model selection on separate validation and holdout
         run: node research/advancedValidation.mjs
         timeout-minutes: 14
