@@ -1,1 +1,121 @@
 :root{font-family:Roboto,"Arial",sans-serif;background:#0a1323;color:#ebf5fc;color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0a1323}header{background:linear-gradient(135deg,#16385a,#173a38);border-bottom:1px solid #284e60;padding:calc(28px + env(safe-area-inset-top)) 0 28px}.wrap{margin:auto;max-width:800px;padding:0 16px}.eyebrow{font-size:11px;letter-spacing:1.7px;color:#6de3be;font-weight:800}h1{font-size:32px;line-height:1.12;margin:12px 0 9px;font-weight:850;letter-spacing:-.6px}h1 span{display:block;color:#6de3be}header p{font-size:14px;color:#c4d5dd;line-height:1.5;margin:0}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px;margin-bottom:12px}.toolbar h2,h2{font-size:20px;margin:0 0 3px}.toolbar small{color:#a1b5c5}button{background:#47d9af;color:#08251e;border:0;border-radius:11px;min-height:45px;font-size:14px;font-weight:800;padding:0 15px}button:active{opacity:.8}.wide{width:100%;margin-top:12px}#status{padding:11px 13px;background:#172a42;color:#b8d4e2;font-size:13px;border-radius:10px;line-height:1.4;margin-bottom:14px}.error{color:#ffc9b7!important}.matches{display:grid;grid-template-columns:1fr;gap:12px}.match,.manual{border-radius:16px;background:#16273e;border:1px solid #2c4560;padding:16px}.date{color:#a7bccd;font-size:12px}.teams{font-size:20px;font-weight:850;line-height:1.42;margin:13px 0}.teams .versus{font-size:12px;color:#88a2b6;font-weight:500}.result{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.result>div{background:#223752;border-radius:10px;padding:12px;font-size:12px;color:#afc8d8}.pick,.score{font-size:32px;font-weight:900;color:#7ce8c7;margin:6px 0 0}.score{color:#fff}.prob{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.prob>div{background:#20354d;border-radius:9px;text-align:center;padding:9px 2px;font-size:13px}.prob strong{display:block;margin-top:3px;font-size:17px}.meta{color:#a2b8c9;font-size:12px;line-height:1.55;margin-top:14px}.manual{margin-top:23px}.manual p{color:#adc0cd;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}.controls label,.sliders label{font-size:12px;color:#bbcedc}select{width:100%;background:#0b1b2b;border:1px solid #45627e;border-radius:9px;color:#fff;padding:11px 5px;margin-top:7px;font-size:12px;min-width:0}.sliders{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}.sliders label{display:block}.sliders output{font-weight:800;color:#75ebc5}input[type=range]{display:block;width:100%;margin:12px 0;accent-color:#53d9b3}#manual-result .match{margin-top:13px}.fine{font-size:11px;color:#91a9ba;line-height:1.6;padding:14px 0 calc(20px + env(safe-area-inset-bottom))}@media(min-width:680px){.matches{grid-template-columns:repeat(2,1fr)}h1{font-size:46px}}
+
+.league-tabs{display:flex;gap:7px;overflow-x:auto;padding:19px 0 10px;scrollbar-width:none}.league-tabs button{white-space:nowrap;background:#1b314a;color:#d4e2ea;border:1px solid #34506d;font-size:12px;min-height:43px;padding:0 12px}.league-tabs button[aria-pressed=true]{background:#6be0bd;color:#06261b;border-color:#6be0bd}.coverage{font-size:12px;color:#b5ccda;line-height:1.5;padding:11px 13px;border:1px solid #34506d;border-radius:11px;background:#152841;margin-bottom:10px}
+
+
+/* Automatic odds scanner dashboard: high contrast, large Android touch targets */
+.ticket-studio{margin-top:24px;border-radius:21px;border:1px solid #395d69;background:
+radial-gradient(circle at 100% 0%,#214b58 0%,transparent 43%),#15283c;
+padding:18px 15px;box-shadow:0 14px 40px #050d1980}
+.studio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}
+.studio-head h2{margin:7px 0 9px;font-size:24px;line-height:1.15;color:#f2faff}
+.studio-head p{color:#b7cbd5;font-size:13px;line-height:1.5;max-width:610px;margin:0 0 12px}
+.studio-chip{flex-shrink:0;border-radius:99px;border:1px solid #5c959d;background:#264653;color:#b8fbec;font-size:10px;padding:7px 8px;margin-top:4px}
+.odds-status{background:#0f2233;color:#c2dbe4;border:1px solid #2f5867;border-radius:11px;
+font-size:12px;padding:12px;line-height:1.45;margin:8px 0 13px}
+.odds-status.error{color:#ffccbe;background:#362229;border-color:#934c4c}
+.odds-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:23px}
+.odds-metrics>div{background:#203c51;border:1px solid #31596c;padding:12px 6px;border-radius:12px;text-align:center;min-width:0}
+.odds-metrics span{display:block;font-size:10px;color:#b6c9d6;line-height:1.3}
+.odds-metrics strong{display:block;color:#80e6cc;font-size:22px;margin-top:5px;font-variant-numeric:tabular-nums}
+.ticket-studio h3{font-size:14px;margin:15px 0 10px}
+.ticket-profiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.ticket-profiles button{border:1px solid #416074;border-radius:12px;padding:10px 7px;min-height:68px;
+color:#d2e5ec;background:#253b4e;line-height:1.3;font-size:12px;min-width:0}
+.ticket-profiles button[aria-pressed=true]{background:#62deba;color:#062719;border-color:#62deba}
+.p-name{display:block;font-weight:800}.p-sub{display:block;font-size:10px;font-weight:500;opacity:.83;margin-top:4px}
+.ticket-stakes{margin:17px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ticket-stakes>span{font-size:12px;color:#d1e4ed}
+.ticket-stakes>div{display:flex;gap:7px}
+.ticket-stakes button{min-height:38px;border:1px solid #48647a;color:#d6e4ed;background:#274056;padding:0 11px;font-size:12px;border-radius:9px}
+.ticket-stakes button[aria-pressed=true]{border-color:#79e0c3;background:#355d59;color:#c6f9e9}
+.scan-button{background:#80efc9;color:#0a2820;box-shadow:0 3px 16px #1f916e29;font-size:14px;min-height:51px}
+.ticket-summary{font-size:12px;color:#b2d3dc;margin:16px 2px 11px}
+.no-edges{background:#102638;border:1px dashed #456478;color:#c5dbe7;border-radius:14px;
+padding:18px;font-size:13px;line-height:1.5;margin-top:12px}
+.no-edges strong{font-size:15px;color:#edf8ff}
+.no-edges p{margin-bottom:0}
+.auto-ticket{border:1px solid #456b72;border-radius:17px;padding:16px 13px;margin:12px 0;
+background:linear-gradient(140deg,#223d51,#152c3f)}
+.ticket-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;
+color:#bbd7df;margin-bottom:11px}
+.ticket-odds{font-variant-numeric:tabular-nums;color:#a8f8c9;font-size:24px;font-weight:900}
+.leg-row{display:grid;grid-template-columns:minmax(0,1fr) 34px 58px;align-items:center;gap:8px;
+border-top:1px solid #355366;padding:11px 0}
+.leg-names strong{font-size:12px;line-height:1.35;display:block;overflow-wrap:anywhere;color:#ebf7fb}
+.leg-names small{display:block;font-size:10px;color:#a6becd;margin-top:4px;line-height:1.3}
+.leg-pick{display:grid;place-items:center;background:#47877c;color:#effff7;border-radius:8px;
+min-height:30px;font-size:15px;font-weight:850}
+.leg-odds{font-size:15px;text-align:right;color:#e9f4fa;font-weight:750}
+.ticket-prob-row{border-top:1px solid #456477;display:flex;justify-content:space-between;gap:10px;
+font-size:12px;margin:9px 0 8px;padding-top:12px}
+.ticket-prob-row strong{color:#81edc7;font-size:17px;font-variant-numeric:tabular-nums}
+.prob-track{height:7px;background:#0e2130;border-radius:6px;overflow:hidden}
+.prob-track>div{height:100%;background:#6ee6c3;border-radius:6px;min-width:1px}
+.ticket-financial{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 10px}
+.ticket-financial>div{padding:11px;background:#0c2433;border-radius:11px}
+.ticket-financial small{font-size:10px;color:#a7bfcb;display:block}
+.ticket-financial strong{font-size:18px;color:#f1fafb;display:block;margin-top:3px}
+.ticket-caveat{font-size:11px;line-height:1.5;color:#abc4d0;border-top:1px solid #39596a;padding-top:10px}
+.source-notice{color:#8faebe;font-size:11px;line-height:1.5;margin-top:17px;border-left:3px solid #53768a;padding:5px 10px}
+@media(min-width:680px){.ticket-studio{padding:24px}.ticket-profiles{gap:12px}.ticket-profiles button{min-height:77px}}
+
+
+/* Fast jump navigation – reachable above the fold */
+.quick-jump{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0}
+.quick-jump a{display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;
+ border:1px solid #34576d;border-radius:10px;text-decoration:none;color:#d4e7f1;background:#1a334b;
+ padding:5px;font-size:11px;font-weight:750;line-height:1.25}
+.quick-jump a:first-child{background:#2b5954;border-color:#5dafa0;color:#dcfff3}
+#auto-tickets,#games,#own-match{scroll-margin-top:16px}
+.historical-details{border-top:1px solid #35566c;margin-top:17px;color:#bdd4df;padding-top:8px}
+.historical-details summary{font-size:12px;font-weight:750;cursor:pointer;list-style:revert;min-height:40px;
+ display:flex;align-items:center;color:#80e9cc;text-decoration:underline;text-underline-offset:3px}
+.historical-content{padding:4px 0 7px;font-size:11px;line-height:1.5;color:#bfd2de}
+.historical-content table{border-collapse:collapse;width:100%;margin:12px 0;color:#e5eff8;font-variant-numeric:tabular-nums}
+.historical-content th,.historical-content td{padding:10px 5px;text-align:center;border-bottom:1px solid #35576b}
+.historical-content th:first-child{text-align:left}
+.historical-content tr:nth-child(even){background:#20394d}
+
+.factor-list{border-top:1px solid #36546a;margin-top:10px;padding-top:7px;color:#c1d9e4}
+.factor-list summary{min-height:36px;display:flex;align-items:center;font-size:12px;font-weight:750;cursor:pointer;color:#85e6c7}
+.factor-list ul{margin:5px 0 4px;padding-left:18px}
+.factor-list li{font-size:11px;line-height:1.52;margin:7px 0;overflow-wrap:anywhere}
+
+
+/* Clear, tactile paper-ticket mode and historical no-money outcome journal */
+.paper-lab{margin-top:17px;background:linear-gradient(165deg,#1e4050,#0e263b);
+ border:1px solid #4f8790;border-radius:20px;padding:19px 15px;box-shadow:0 12px 30px #04162466}
+.paper-lab h2{font-size:23px;line-height:1.25;margin:9px 0}
+.paper-lab>p{font-size:13px;line-height:1.5;color:#c0d5df;margin:0 0 13px}
+.paper-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:16px 0 11px}
+.paper-overview>div{border-radius:12px;border:1px solid #3b697b;background:#173447;padding:12px 5px;text-align:center}
+.paper-overview span{display:block;font-size:10px;color:#accedb;line-height:1.35}
+.paper-overview strong{display:block;font-size:20px;color:#e7fffb;margin-top:5px;word-break:break-word}
+.paper-overview strong.paper-negative{color:#ffa6a6}
+.paper-overview strong.paper-positive{color:#80e6c1}
+.paper-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}
+.paper-actions button{border-radius:11px;min-height:53px;line-height:1.25;font-size:12px;padding:9px 11px}
+.paper-actions button:first-child{background:#86edc9;color:#0a3025}
+.paper-actions button:last-child{background:#2a5267;color:#edfaff;border:1px solid #57879d}
+.paper-actions button:disabled{background:#38515c;color:#92a7ab;opacity:.65}
+.paper-ticket{border:1px solid #3e6979;border-radius:14px;background:#102a3d;margin:13px 0;padding:13px}
+.paper-ticket.paper-win{border-color:#3d9679}
+.paper-ticket.paper-loss{border-color:#885564}
+.paper-ticket-top{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.paper-ticket-top strong{color:#e5fff5;font-size:15px}
+.paper-ticket-top span{color:#9fbdca;font-size:11px}
+.paper-ticket-meta{color:#b6ccd7;font-size:11px;margin-top:7px;line-height:1.5}
+.paper-ticket-leg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;
+ align-items:center;border-top:1px solid #325364;padding:10px 0;color:#d2e7ec;font-size:12px}
+.paper-ticket-leg>span{overflow-wrap:anywhere}
+.paper-ticket-leg>strong{font-size:12px;color:#90ead0}
+.paper-ticket-leg>small{color:#b4cfdf;white-space:nowrap;font-size:11px}
+.paper-ticket-bottom{border-top:1px solid #406878;padding-top:12px;display:flex;
+ justify-content:space-between;gap:12px;font-size:12px;color:#b4ccdc}
+.paper-ticket-bottom strong{color:#f2fcff;font-size:16px}
+.paper-empty{font-size:12px;color:#bad1df;background:#142b3c;border:1px dashed #456478;
+ padding:14px;border-radius:11px;line-height:1.5}
+.quick-jump{grid-template-columns:repeat(4,minmax(0,1fr))}
+#paper-lab{scroll-margin-top:15px}
+@media(min-width:680px){.paper-lab{padding:23px}.paper-actions button{font-size:14px}}
