@@ -3,6 +3,21 @@
 const $=id=>document.getElementById(id);
 const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const pct=x=>(100*x).toFixed(1)+' %';
+const outcomeScore=(home,away)=>home>away?'1':home===away?'X':'2';
+function scoreForSelectedPick(xgHome,xgAway,pick){
+  if(!['1','X','2'].includes(pick))throw Error('Invalid outcome');
+  const lamH=Number(xgHome),lamA=Number(xgAway);
+  if(!Number.isFinite(lamH)||!Number.isFinite(lamA))return '–';
+  const pmf=(k,lam)=>{let p=Math.exp(-lam);for(let i=1;i<=k;i++)p=p*lam/i;return p};
+  let max=-1,score='–';
+  for(let h=0;h<=11;h++)for(let a=0;a<=11;a++){
+    if(outcomeScore(h,a)!==pick)continue;
+    const p=pmf(h,lamH)*pmf(a,lamA);
+    if(p>max){max=p;score=h+':'+a}
+  }
+  return score;
+}
+
 const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
 const HOCKEY=['Bílí Tygři Liberec','Dynamo Pardubice','HC Energie Karlovy Vary','HC Kometa Brno',
@@ -120,19 +135,22 @@ function updateHistory(played){
  return {state,changes};
 }
 function futureForecast(match,all,state){
- const base=modelForFixture(match,all);
- const at=new Date().toISOString();
- const forecast=MOD.adaptivePrediction(LEAGUES[current].namespace,base,null,state,at);
- // Persist *first* genuine pre-kickoff forecast. Never forge an old tip.
- try{
-  if(MOD.recordForecast(state,{id:match.id,competition:LEAGUES[current].namespace,
-   predictedAt:at,kickoff:match.kickoff,pick:forecast.pick,
-   probabilities:forecast.probabilities,experts:forecast.experts}))saveState(state);
- }catch(e){}
- return {...base,pick:forecast.pick,probabilities:forecast.probabilities,
-  confidence:forecast.confidence,learnedFrom:forecast.learnedFrom,
-  explanation:'Kombinace Poisson, Elo a korekce z minulých vlastních chyb. Bez ověřených sestav či kurzů žádná smyšlená data.'};
+ const base=modelForFixture(match,all),at=new Date().toISOString();
+ const existing=state.events.find(e=>e.id===match.id);
+ const snapshot=existing||MOD.adaptivePrediction(LEAGUES[current].namespace,base,null,state,at);
+ if(!existing){
+  try{
+   if(MOD.recordForecast(state,{id:match.id,competition:LEAGUES[current].namespace,
+    predictedAt:at,kickoff:match.kickoff,pick:snapshot.pick,
+    probabilities:snapshot.probabilities,experts:snapshot.experts}))saveState(state);
+  }catch(e){}
+ }
+ return {...base,pick:snapshot.pick,probabilities:snapshot.probabilities,
+  score:scoreForSelectedPick(base.xgHome,base.xgAway,snapshot.pick),
+  confidence:snapshot.probabilities[snapshot.pick],learnedFrom:existing?'původní uložený tip':'průběžný model',
+  explanation:existing?'Původní předzápasový tip z '+new Date(existing.predictedAt).toLocaleString('cs-CZ')+'.':'Lokální ensemble: Poisson, Elo a váhy upravované podle minulých chyb.'};
 }
+
 function renderSchedule(events,receivedAt,cache=false){
  const parsed=events.map(eventFromEspn).filter(Boolean);
  if(!parsed.length)throw Error('Zdroj nevrátil ověřitelná utkání');
@@ -220,7 +238,9 @@ $('calc').addEventListener('click',()=>{
   const base=modelForFixture(fixture,sessionMatches,true);
   const state=readState(),adaptive=MOD.adaptivePrediction(LEAGUES[current].namespace,base,null,state,new Date().toISOString());
   $('manual-result').innerHTML=scoreCard(home,away,{
-   ...base,pick:adaptive.pick,probabilities:adaptive.probabilities,learnedFrom:adaptive.learnedFrom,
+   ...base,pick:adaptive.pick,probabilities:adaptive.probabilities,
+   score:scoreForSelectedPick(base.xgHome,base.xgAway,adaptive.pick),
+   learnedFrom:adaptive.learnedFrom,
    explanation:'Ruční simulace. Síla týmů a dříve dokončené výsledky, pokud jsou dostupné.'
   },'Orientační ruční simulace · bez zaznamenání neuskutečněného zápasu');
  }catch(e){$('manual-result').textContent='Výpočet se nezdařil: '+e.message;}
