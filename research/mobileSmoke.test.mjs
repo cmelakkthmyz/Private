@@ -50,14 +50,16 @@ test('home page starts with Premier League and requests its actual fixtures',()=
  const t=makeDom();
  assert.equal(t.calls[0],'pl');
  assert.ok(t.controls['coverage'].textContent.includes('Premier League'));
- t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming)]}),'pl');
+ const second=event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+86400000).toISOString());
+ second.id='s2';
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
  assert.ok(t.controls.matches.innerHTML.includes('Arsenal'));
  assert.ok(t.controls.matches.innerHTML.includes('Liverpool'));
  assert.ok(t.controls.matches.innerHTML.includes('Tip 1 / X / 2'));
  assert.ok(t.controls['ticket-legs'].innerHTML.includes('ticket-match-0'));
 
  const state=JSON.parse(t.saved.get('premier-intelligence-online-v1:pl-football'));
- assert.equal(state.events.length,1);
+ assert.equal(state.events.length,2);
  assert.equal(state.accuracy.settled,0);
 });
 test('switch to Czech hockey loads public table and previews 60-minute outcome',()=>{
