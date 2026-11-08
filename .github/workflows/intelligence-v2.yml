@@ -1,0 +1,55 @@
+name: Premier League Intelligence V2 Backtest
+on:
+  push:
+    branches: [premier-league-model-v2]
+  pull_request:
+    branches: [premier-league-android]
+  workflow_dispatch:
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax validation
+        run: |
+          node --check research/intelligenceV2.mjs
+          node --check research/matchPriority.mjs
+          node --check research/walkForwardV2.mjs
+          node --check research/continualLearning.mjs
+          node --check research/czechHistory.mjs
+          node --check research/seasonalReplay.mjs
+          node --check research/hockeyV2.mjs
+          node --check research/ticketEvaluator.mjs
+          node --check research/autoOddsScanner.mjs
+          node --check research/autoTicketBacktest.mjs
+          node --check research/openFootballEngland.mjs
+          node --check research/extraHistorySignals.mjs
+          node --check research/advancedValidation.mjs
+          node --check research/paperSimulation.mjs
+      - name: Invariant and anti-leakage tests
+        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs research/advancedHistory.test.mjs research/paperSimulation.test.mjs
+      - name: Public-domain 21-season EPL stadium feature validation
+        run: node research/advancedValidation.mjs
+      - name: Optional legacy market-odds historical data (external source may time out)
+        continue-on-error: true
+        run: node research/walkForwardV2.mjs
+      - name: Optional legacy 2- and 3-leg ticket backtest (external market source)
+        continue-on-error: true
+        run: node research/autoTicketBacktest.mjs
+      - name: Czech league audited historical replay and self-learning
+        run: node research/seasonalReplay.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: premier-league-intelligence-v2-results
+          path: |
+            research/results/v2-backtest.json
+            research/results/czech-history-learning.json
+            research/results/auto-ticket-backtest.json
+            research/results/advanced-history-validation.json
+          if-no-files-found: error

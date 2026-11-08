@@ -1,9 +1,9 @@
 name: Premier League Android APK
 on:
   push:
-    branches: [premier-league-android]
+    branches: [premier-league-android, premier-league-model-v2]
   pull_request:
-    branches: [main]
+    branches: [main, premier-league-android]
   workflow_dispatch:
 jobs:
   build:
@@ -19,7 +19,40 @@ jobs:
         run: |
           node --check app/src/main/assets/model.js
           node --check app/src/main/assets/app.js
+          node --check research/openFootballEngland.mjs
+          node --check research/extraHistorySignals.mjs
+          node --check research/advancedValidation.mjs
+          node --check research/paperSimulation.mjs
+          if [ -f research/hockeyV2.mjs ]; then node --check research/hockeyV2.mjs && node --check research/ticketEvaluator.mjs && node --check research/autoOddsScanner.mjs; fi
           node --test test/model.test.cjs
+          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs research/advancedHistory.test.mjs research/paperSimulation.test.mjs; fi
+      - name: Real internet check of current FPL, Czech football, hockey and published odds
+        run: node research/liveSourceSmoke.mjs
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-sport-sources-diagnostic
+          path: research/results/live-source-check.json
+          if-no-files-found: warn
+      - name: Audited 21-season model selection on separate validation and holdout
+        run: node research/advancedValidation.mjs
+        timeout-minutes: 14
+      - name: Compile online-learning browser engine and audited CZ and English archives
+        run: |
+          if [ -f research/browserAdapter.mjs ]; then
+            npm install --no-save esbuild@0.25.12
+            ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
+            node research/buildMobileArchive.mjs
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sport-predictor-v3-historical-model-report
+          path: research/results/advanced-history-validation.json
+          if-no-files-found: warn
+      - name: Test actual Android WebView app assets
+        run: node --test research/mobileSmoke.test.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,7 +65,7 @@ jobs:
           echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
       - name: Build installable debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: PremierLeaguePredictor-Android-APK
