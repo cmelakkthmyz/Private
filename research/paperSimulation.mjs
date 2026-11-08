@@ -78,7 +78,7 @@ export function placePaperTicket(ledger,proposal,{createdAt=new Date().toISOStri
    when-retrieved>14*3600_000)throw Error('Kurz není současný. Obnov nabídku.');
   if(!l.sourceUrl||!/^https:\/\//.test(l.sourceUrl))
    throw Error('Není doložen veřejný zdroj kurzu.');
-  return Object.freeze({matchId:String(l.matchId),league:l.league,home:l.home,away:l.away,
+  return Object.seal({matchId:String(l.matchId),league:l.league,home:l.home,away:l.away,
    kickoff:l.kickoff,pick:l.pick,odds:l.odds,modelProbability:l.p,
    bookmaker:l.bookmaker||'public odds',sourceUrl:l.sourceUrl,offeredAt:l.offeredAt,
    status:'pending',result:null});
