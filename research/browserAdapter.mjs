@@ -1,3 +1,4 @@
+import {buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES} from './autoOddsScanner.mjs';
 import {evaluateCombo} from './ticketEvaluator.mjs';
 // Compiled by CI as a standalone browser asset. No accounts, tokens, or backend needed.
 import {predictIntelligence,BASELINE_CONFIG} from './intelligenceV2.mjs';
@@ -9,3 +10,5 @@ globalThis.PredictorV2={predictIntelligence,BASELINE_CONFIG,
 globalThis.HockeyModel={hockeyStandingsProfile,hockeyFixtureRates,calibrateRegulationHockey,hockeyTeamKey};
 
 globalThis.TicketCalculator={evaluateCombo};
+
+globalThis.AutoOdds={buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES};
