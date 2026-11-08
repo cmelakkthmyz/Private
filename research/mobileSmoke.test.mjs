@@ -27,13 +27,13 @@ const makeDom=()=>{
   querySelectorAll(){return [];},
   setAttribute(k,v){this.attributes[k]=v;}
  };
- const saved=new Map(),calls=[],now=Date.now(),upcoming=new Date(now+3*86400000).toISOString();
+ const saved=new Map(),calls=[],oddsRequests=[],now=Date.now(),upcoming=new Date(now+3*86400000).toISOString();
  const ctx={
   console,URL,Intl,Date,Math,JSON,Array,Object,Number,String,Error,Boolean,Map,Set,Float64Array,
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
-  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);},
-   loadChanceOdds(){calls.push('chance');},
+  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(id){calls.push('odds');oddsRequests.push({provider:'tipsport',id});},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);},
+   loadChanceOdds(id){calls.push('chance');oddsRequests.push({provider:'chance',id});},
    chanceKeyStatus(){calls.push('chance-key-status');},
    saveChanceApiKey(key){calls.push('save-key');},
    clearChanceApiKey(){calls.push('clear-key');}},
@@ -42,7 +42,7 @@ const makeDom=()=>{
  const scope=vm.createContext(ctx);
  for(const name of ['model.js','intelligence.js','czArchive.js','app.js'])
   vm.runInContext(fs.readFileSync(SRC+name,'utf8'),scope,{filename:name});
- return {controls,calls,saved,ctx,upcoming};
+ return {controls,calls,oddsRequests,saved,ctx,upcoming};
 };
 const event=(home,away,date,finished=false)=>({
  id:'s1',date,status:{type:{completed:finished,name:finished?'STATUS_FINAL':'STATUS_SCHEDULED'}},
@@ -208,7 +208,7 @@ test('paper lab is on screen and refuses to pretend to bet when market not loade
  assert.equal(t.controls['paper-completed'].textContent,'0');
  assert.equal(t.controls['paper-create'].disabled,true);
  t.controls['paper-create'].listeners.click();
- assert.ok(t.controls['paper-status'].textContent.includes('ověřených'));
+ assert.ok(t.controls['paper-status'].textContent.includes('Obnov nabídku'));
  assert.equal(t.saved.get('sport-predictor-paper-v1'),undefined);
 });
 test('paper ticket is created from genuine matched quoted offers, stored in local phone journal',()=>{
@@ -241,6 +241,22 @@ test('paper ticket is created from genuine matched quoted offers, stored in loca
  // The same button must not double-count the same frozen market.
  t.controls['paper-create'].listeners.click();
  assert.equal(JSON.parse(t.saved.get('sport-predictor-paper-v1')).tickets.length,1);
+});
+test('a Chance paper ticket records Chance as its source',()=>{
+ const t=makeDom(),later=new Date(Date.parse(t.upcoming)+3600000).toISOString();
+ const second={...event('Chelsea','Fulham',later),id:'s2'};
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
+ t.controls['odds-provider'].value='chance';
+ t.controls['odds-provider'].listeners.change();
+ const at=new Date().toISOString();
+ const offers=[['Arsenal','Liverpool',t.upcoming],['Chelsea','Fulham',later]].map(([home,away,kickoff],i)=>({
+  id:'C'+i,league:'pl',home,away,kickoff,odds:{'1':2.4,X:3.4,'2':3.7},bookmaker:'Chance',
+  fetchedAt:at,sourceUrl:'https://www.chance.cz/kurzy'}));
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:at,bookmaker:'Chance'}),'chance',t.oddsRequests.at(-1).id);
+ t.controls['paper-create'].listeners.click();
+ const ticket=JSON.parse(t.saved.get('sport-predictor-paper-v1')).tickets[0];
+ assert.equal(ticket.source,'Chance / PulseScore');
+ assert.ok(ticket.legs.every(leg=>leg.bookmaker==='Chance'));
 });
 test('paper result verification button invokes native all-league and hockey settlement checks',()=>{
  const t=makeDom();
@@ -321,11 +337,51 @@ test('Chance API provider selection is real and never silently substitutes Tipsp
     sourceUrl:'https://www.chance.cz/kurzy'}));
  t.ctx.receiveOdds(JSON.stringify({offers:actual,bookmaker:'Chance',fetchedAt:new Date().toISOString()}),'chance');
  assert.equal(t.controls['odds-total'].textContent,'1');
- assert.ok(t.saved.get('auto-odds-v1:chance'));
+ assert.equal(t.saved.get('auto-odds-v1:chance'),undefined);
  assert.equal(t.saved.get('auto-odds-v1'),undefined);
  t.controls['odds-provider'].value='tipsport';
  t.controls['odds-provider'].listeners.change();
  assert.ok(t.controls['source-notice'].textContent.includes('Tipsport'));
+ assert.equal(t.controls['odds-total'].textContent,'0');
+});
+
+test('refresh clears an old snapshot and a failed request never restores it',()=>{
+ const t=makeDom(),at=new Date().toISOString();
+ const offers=[{id:'T1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+  odds:{'1':2.4,X:3.5,'2':3.1},bookmaker:'Tipsport',fetchedAt:at}];
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:at,bookmaker:'Tipsport'}),'tipsport');
+ assert.equal(t.controls['odds-total'].textContent,'1');
+ t.saved.set('auto-odds-v1',JSON.stringify({offers,fetchedAt:at,bookmaker:'Tipsport'}));
+ t.controls['scan-odds'].listeners.click();
+ assert.equal(t.controls['odds-total'].textContent,'0');
+ const request=t.oddsRequests.at(-1);
+ t.ctx.receiveOdds(JSON.stringify({error:'Zdroj není dostupný'}),'tipsport',request.id);
+ assert.equal(t.controls['odds-total'].textContent,'0');
+ assert.ok(t.controls['odds-status'].textContent.includes('Zdroj není dostupný'));
+});
+
+test('late response from an earlier request cannot replace the refreshed price',()=>{
+ const t=makeDom(),first=t.oddsRequests.at(-1),at=new Date().toISOString();
+ t.controls['scan-odds'].listeners.click();
+ const second=t.oddsRequests.at(-1);
+ assert.notEqual(first.id,second.id);
+ const sample={id:'T1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+  odds:{'1':2.4,X:3.5,'2':3.1},bookmaker:'Tipsport',fetchedAt:at};
+ t.ctx.receiveOdds(JSON.stringify({offers:[sample],fetchedAt:at}),'tipsport',first.id);
+ assert.equal(t.controls['odds-total'].textContent,'0');
+ t.ctx.receiveOdds(JSON.stringify({offers:[sample],fetchedAt:at}),'tipsport',second.id);
+ assert.equal(t.controls['odds-total'].textContent,'1');
+});
+
+test('old, missing, future or another bookmaker prices are not used',()=>{
+ const t=makeDom(),now=Date.now(),at=new Date(now).toISOString();
+ const sample={id:'T1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+  odds:{'1':2.4,X:3.5,'2':3.1},bookmaker:'Tipsport',fetchedAt:at};
+ for(const stamp of [new Date(now-3*60_000).toISOString(),undefined,new Date(now+60_000).toISOString()]){
+  t.ctx.receiveOdds(JSON.stringify({offers:[sample],fetchedAt:stamp}),'tipsport');
+  assert.equal(t.controls['odds-total'].textContent,'0');
+ }
+ t.ctx.receiveOdds(JSON.stringify({offers:[{...sample,bookmaker:'Chance'}],fetchedAt:at}),'tipsport');
  assert.equal(t.controls['odds-total'].textContent,'0');
 });
 test('PulseScore key is passed only to Android encrypted bridge, never saved in web localStorage',()=>{

@@ -33,6 +33,9 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicInteger requestSerial = new AtomicInteger(0);
+    // All requests run on the single background executor. PulseScore BASIC
+    // allows only one request per second per bookmaker, including pagination.
+    private long lastChanceRequestMs = 0L;
     private final ConcurrentHashMap<String, String> cachedFeeds = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> cachedTimes = new ConcurrentHashMap<>();
 
@@ -169,7 +172,7 @@ public final class MainActivity extends Activity {
                 });
             });
         }
-        @JavascriptInterface public void loadChanceOdds() {
+        @JavascriptInterface public void loadChanceOdds(int requestId) {
             executor.execute(()->{
                 String payload;
                 try{
@@ -181,12 +184,12 @@ public final class MainActivity extends Activity {
                 final String result=payload;
                 runOnUiThread(()->{
                     if(webView!=null)webView.evaluateJavascript(
-                        "window.receiveOdds("+JSONObject.quote(result)+",\"chance\");",null);
+                        "window.receiveOdds("+JSONObject.quote(result)+",\"chance\","+requestId+");",null);
                 });
             });
         }
 
-        @JavascriptInterface public void loadOdds() {
+        @JavascriptInterface public void loadOdds(int requestId) {
             executor.execute(() -> {
                 String payload;
                 try {
@@ -198,7 +201,7 @@ public final class MainActivity extends Activity {
                 final String result = payload;
                 runOnUiThread(() -> {
                     if (webView != null) webView.evaluateJavascript(
-                        "window.receiveOdds(" + JSONObject.quote(result) + ",\"tipsport\");", null);
+                        "window.receiveOdds(" + JSONObject.quote(result) + ",\"tipsport\","+requestId+");", null);
                 });
             });
         }
@@ -503,6 +506,9 @@ public final class MainActivity extends Activity {
         return parsed;
     }
     private String readChancePage(String address,String key) throws Exception {
+        long waitMs=lastChanceRequestMs+1100L-android.os.SystemClock.elapsedRealtime();
+        if(waitMs>0)android.os.SystemClock.sleep(waitMs);
+        lastChanceRequestMs=android.os.SystemClock.elapsedRealtime();
         java.net.HttpURLConnection conn=(java.net.HttpURLConnection)new URL(address).openConnection();
         conn.setConnectTimeout(9000);conn.setReadTimeout(10000);
         conn.setRequestProperty("Accept","application/json");

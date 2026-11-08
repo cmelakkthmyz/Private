@@ -1,7 +1,7 @@
 name: Premier League Android APK
 on:
   push:
-    branches: [premier-league-android, premier-league-model-v2]
+    branches: [premier-league-android, premier-league-model-v2, 'codex/sport-predictor-fresh-odds']
   pull_request:
     branches: [main, premier-league-android]
   workflow_dispatch:
