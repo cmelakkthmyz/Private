@@ -14,11 +14,10 @@
  <button type="button" id="league-hockey" aria-pressed="false">Český hokej</button>
 </nav>
 <div class="coverage" id="coverage"></div>
-<nav class="quick-jump" aria-label="Rychlé menu">
- <a href="#model-tickets"><span>AI tikety</span></a>
- <a href="#paper-lab"><span>Historie</span></a>
+<nav class="quick-jump" aria-label="Hlavní menu">
+ <a href="#model-tickets"><span>Vytvořit tiket</span></a>
  <a href="#games"><span>Zápasy</span></a>
- <a href="#own-match"><span>Vlastní zápas</span></a>
+ <a href="#paper-lab"><span>Moje simulace</span></a>
 </nav>
 <section id="model-tickets" class="ticket-studio model-first" aria-labelledby="model-tickets-heading">
  <div class="eyebrow">HLAVNÍ FUNKCE · MODELOVÉ PREDIKCE</div>
@@ -139,7 +138,7 @@
 <section id="games" class="toolbar"><div><h2 id="match-title">Nejbližší zápasy</h2><small>Odhad výsledku a pravděpodobnosti</small></div><button id="refresh" type="button">Obnovit</button></section>
 <div id="status" role="status" aria-live="polite">Připravuji rozpis zápasů…</div>
 <div class="matches" id="matches"></div>
-<section id="own-match" class="manual"><h2>Vlastní zápas</h2><p id="manual-hint">Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
+<section id="own-match" class="manual" style="display:none" aria-hidden="true"><h2>Vlastní zápas</h2><p id="manual-hint">Funguje i bez internetu. Sílu týmů lze upravit ručně.</p>
 <div class="controls"><label>Domácí<select id="home"></select></label><label>Hosté<select id="away"></select></label></div>
 <div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
 <label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
