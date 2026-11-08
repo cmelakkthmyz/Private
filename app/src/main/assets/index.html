@@ -22,6 +22,19 @@
 <div class="sliders"><label>Síla domácích <output id="home-power">70</output><input type="range" min="40" max="110" value="70" id="home-strength"></label>
 <label>Síla hostů <output id="away-power">70</output><input type="range" min="40" max="110" value="70" id="away-strength"></label></div>
 <button id="calc" class="wide" type="button">Spočítat výsledek</button><div id="manual-result"></div></section>
+<section class="manual">
+ <h2>Analýza kombinovaného tiketu</h2>
+ <p>Vyber dvě či tři různá utkání a ručně zadej aktuální kurzy Chance nebo Tipsportu. Porovnám je s odhadovanými pravděpodobnostmi. Bez přihlášení ke sázkovce a bez sázení.</p>
+ <div class="controls"><label>Sázková kancelář
+ <select id="ticket-bookmaker"><option value="Chance">Chance</option><option value="Tipsport">Tipsport</option><option value="Jiná">Jiná</option></select>
+ </label><label>Počet zápasů
+ <select id="ticket-count"><option value="2">2 zápasy</option><option value="3">3 zápasy</option></select></label></div>
+ <div id="ticket-legs"></div>
+ <label class="ticket-stake">Vklad pouze pro výpočet (Kč)
+ <input type="number" id="ticket-stake" value="50" min="1" max="50000" step="1"></label>
+ <button id="ticket-calc" class="wide" type="button">Porovnat pravděpodobnost a kurzy</button>
+ <div id="ticket-result" aria-live="polite"></div>
+ </section>
 <p class="fine" id="data-attribution">Zdroje: ESPN (fotbal), SazkyWeb.cz (hokej, CC BY 4.0), OpenFootball (historie, CC0). Pro hokej nejsou k dispozici individuální výsledky po 60 minutách, takže se historická přesnost zatím nedá spolehlivě ověřit. Nikdy nezadávej hesla k sázkovce do aplikace. Výsledky jsou odhady, nikoli záruka.</p>
 </main><script src="model.js"></script><script src="intelligence.js"></script><script src="czArchive.js"></script><script src="app.js"></script>
 </body></html>
