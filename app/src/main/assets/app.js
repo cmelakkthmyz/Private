@@ -51,6 +51,7 @@ let current='pl',sessionMatches=[],sessionTeams=[],lastPayload=null,lastUpdated=
 let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
 let oddsProvider=localStorage.getItem('sport-odds-provider')==='chance'?'chance':'tipsport';
+let pendingChanceKeySave=false;
 const oddsCacheKey=()=>oddsProvider==='chance'?'auto-odds-v1:chance':'auto-odds-v1';
 let livePlContext=null,livePlTimestamp=null,backgroundErrors={};
 const candidatesByLeague={pl:[],cz:[],hockey:[]};
@@ -568,7 +569,8 @@ globalThis.receiveOdds=function(raw,origin){
 };
 globalThis.receiveChanceKeyStatus=function(configured,message){
  $('chance-key-status').textContent=(configured?'Nastaveno: ':'Není nastaveno: ')+String(message||'');
- if(configured&&oddsProvider==='chance')loadAutomaticOdds(true);
+ if(configured&&oddsProvider==='chance'&&pendingChanceKeySave)loadAutomaticOdds(true);
+ pendingChanceKeySave=false;
 };
 function saveChanceApiKey(){
  const field=$('chance-api-key'),value=field.value;
@@ -581,6 +583,7 @@ function saveChanceApiKey(){
   $('chance-key-status').textContent='Zadej klíč PulseScore, ne heslo ke Chance.';
   return;
  }
+ pendingChanceKeySave=true;
  globalThis.AndroidPredictor.saveChanceApiKey(value);
  $('chance-key-status').textContent='Ukládám API klíč šifrovaně do telefonu…';
 }
@@ -830,6 +833,11 @@ $('clear-chance-key').addEventListener('click',()=>{
  else $('chance-key-status').textContent='Klíč není uložen.';
 });
 if(oddsProvider==='chance')$('chance-api-settings').open=true;
+$('source-notice').textContent=oddsProvider==='chance'?
+ 'Chance: ověřitelné předzápasové kurzy z nezávislého PulseScore API. Data lze načítat s API klíčem PulseScore, nikoli heslem k účtu Chance. Kurzy se mohou změnit.':
+ 'Tipsport: veřejný časově omezený přehled SazkyWeb.cz; nejde o garantovanou cenu.';
+if(globalThis.AndroidPredictor?.chanceKeyStatus)
+ globalThis.AndroidPredictor.chanceKeyStatus();
 try{
  const restored=JSON.parse(localStorage.getItem('live-pl-context-v1')||'null');
  if(restored)acceptLiveContext({context:restored});
