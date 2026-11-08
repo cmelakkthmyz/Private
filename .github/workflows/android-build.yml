@@ -1,7 +1,7 @@
 name: Premier League Android APK
 on:
   push:
-    branches: [premier-league-android]
+    branches: [premier-league-android, premier-league-model-v2]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -20,6 +20,14 @@ jobs:
           node --check app/src/main/assets/model.js
           node --check app/src/main/assets/app.js
           node --test test/model.test.cjs
+          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs; fi
+      - name: Compile online-learning browser engine and audited CZ archive
+        run: |
+          if [ -f research/browserAdapter.mjs ]; then
+            npm install --no-save esbuild@0.25.12
+            ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
+            node research/buildMobileArchive.mjs
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
