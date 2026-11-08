@@ -157,15 +157,23 @@ function modelForFixture(match,matches,manual=false){
  const profileRates=current==='hockey'?HOCK.hockeyFixtureRates(hockeyProfile,match.home_team_id,match.away_team_id):null;
  const useFplSource=current==='pl'&&!manual&&fplFresh();
  const verifiedHistorical=current==='pl'&&VALIDATED.production?.advancedHistory===true;
+ // Base football hyperparameters are exactly those fixed by the 2024/25
+ // validation, then checked unchanged on 2025/26. Fresh roster/cup overlays
+ // are prospective-only and not claimed to have historic test accuracy.
+ const testedCore=current==='pl'?VALIDATED.production?.config:null;
  const cfg={
-  prior:6,power:.87,eloWeight:current==='hockey'?.12:.25,marketWeight:0,
-  priorityWeight:current==='hockey'?0:.40,
+  prior:testedCore?.prior??6,
+  power:testedCore?.power??.87,
+  eloWeight:current==='hockey'?.12:(testedCore?.eloWeight??.25),
+  marketWeight:0,priorityWeight:current==='hockey'?0:.40,
   useFpl:manual||useFplSource,
   useAvailability:useFplSource,
-  useAdvancedHistory:verifiedHistorical,venueWeight:verifiedHistorical?(VALIDATED.production.venueWeight||0):0,
+  useAdvancedHistory:verifiedHistorical,
+  venueWeight:verifiedHistorical?(VALIDATED.production.venueWeight||0):0,
   shotsWeight:0,
-  homeBase:profileRates?.homeBase??league.homeBase,
-  awayBase:profileRates?.awayBase??league.awayBase,decayDays:135
+  homeBase:profileRates?.homeBase??testedCore?.homeBase??league.homeBase,
+  awayBase:profileRates?.awayBase??testedCore?.awayBase??league.awayBase,
+  decayDays:testedCore?.decayDays??135
  };
  const teams=manual?[
   {id:match.home_team_id,attack:Number($('home-strength').value),defense:Number($('home-strength').value)},
