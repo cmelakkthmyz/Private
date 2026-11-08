@@ -28,8 +28,13 @@ jobs:
           node --check research/ticketEvaluator.mjs
           node --check research/autoOddsScanner.mjs
           node --check research/autoTicketBacktest.mjs
+          node --check research/openFootballEngland.mjs
+          node --check research/extraHistorySignals.mjs
+          node --check research/advancedValidation.mjs
       - name: Invariant and anti-leakage tests
-        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs
+        run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs research/advancedHistory.test.mjs
+      - name: Public-domain 21-season EPL stadium feature validation
+        run: node research/advancedValidation.mjs
       - name: Historical out-of-sample backtest
         run: node research/walkForwardV2.mjs
       - name: Historical automatic combo-ticket backtest on 2024/25 and 2025/26 independent odds
@@ -43,4 +48,5 @@ jobs:
             research/results/v2-backtest.json
             research/results/czech-history-learning.json
             research/results/auto-ticket-backtest.json
+            research/results/advanced-history-validation.json
           if-no-files-found: error
