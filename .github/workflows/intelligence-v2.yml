@@ -27,12 +27,13 @@ jobs:
           node --check research/hockeyV2.mjs
           node --check research/ticketEvaluator.mjs
           node --check research/autoOddsScanner.mjs
+          node --check research/autoTicketBacktest.mjs
       - name: Invariant and anti-leakage tests
         run: node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs research/ticketEvaluator.test.mjs research/autoOddsScanner.test.mjs
-      - name: Inspect public Tipsport odds HTML for reliable direct parsing
-        run: node research/probeOdds.mjs
       - name: Historical out-of-sample backtest
         run: node research/walkForwardV2.mjs
+      - name: Historical automatic combo-ticket backtest on 2024/25 and 2025/26 independent odds
+        run: node research/autoTicketBacktest.mjs
       - name: Czech league audited historical replay and self-learning
         run: node research/seasonalReplay.mjs
       - uses: actions/upload-artifact@v4
@@ -41,4 +42,5 @@ jobs:
           path: |
             research/results/v2-backtest.json
             research/results/czech-history-learning.json
+            research/results/auto-ticket-backtest.json
           if-no-files-found: error
