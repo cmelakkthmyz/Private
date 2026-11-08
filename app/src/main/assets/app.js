@@ -80,15 +80,36 @@ function saveState(state){
  try{localStorage.setItem(storeKey(current),JSON.stringify(state));}catch(e){}
 }
 function scoreCard(home,away,forecast,meta){
+ const feat=forecast.features||{},parts=[];
+ if(Number.isFinite(feat.homeElo)&&Number.isFinite(feat.awayElo))
+  parts.push('Forma týmů: síla Elo '+Math.round(feat.homeElo)+' : '+Math.round(feat.awayElo));
+ if(feat.homeForm&&feat.awayForm)
+  parts.push('Body z posledních zápasů na utkání: '+feat.homeForm.pointsPerGame+' : '+feat.awayForm.pointsPerGame);
+ if(feat.homeRest?.restDays!=null&&feat.awayRest?.restDays!=null)
+  parts.push('Dny od posledního ligového zápasu: '+feat.homeRest.restDays+' : '+feat.awayRest.restDays);
+ if(feat.homeAvailability?.available||feat.awayAvailability?.available){
+  const missingHome=(feat.homeAvailability?.missing||[]).slice(0,4).join(', ')||'bez potvrzených výpadků z FPL';
+  const missingAway=(feat.awayAvailability?.missing||[]).slice(0,4).join(', ')||'bez potvrzených výpadků z FPL';
+  parts.push('Dostupnost hráčů FPL – '+home+': '+missingHome+'; '+away+': '+missingAway);
+ }
+ const pri=feat.matchPriority;
+ if(pri?.home?.cup)parts.push('Domácí mají v rozpisu také '+pri.home.cup.competition+
+  ' dne '+new Date(pri.home.cup.kickoff).toLocaleDateString('cs-CZ')+'; důkaz účelového šetření hráčů to není');
+ if(pri?.away?.cup)parts.push('Hosté mají v rozpisu také '+pri.away.cup.competition+
+  ' dne '+new Date(pri.away.cup.kickoff).toLocaleDateString('cs-CZ')+'; důkaz účelového šetření hráčů to není');
+ if(feat.additionalHistory?.evidence?.hasVenue)
+  parts.push('Domácí a venkovní statistiky z dřívějších zápasů: zahrnuty po historickém ověření');
+ const detail=parts.length?'<details class="factor-list"><summary>Co ovlivnilo předpověď</summary>'+
+  '<ul>'+parts.slice(0,7).map(v=>'<li>'+escapeText(v)+'</li>').join('')+'</ul></details>':'';
  return '<article class="match"><div class="date">'+escapeText(meta||'')+'</div>'+
  '<div class="teams">'+escapeText(home)+'<br><span class="versus">vs.</span><br>'+escapeText(away)+'</div>'+
  '<div class="result"><div>Tip 1 / X / 2<div class="pick">'+escapeText(forecast.pick)+'</div></div>'+
  '<div>Nejpravděpodobnější skóre<div class="score">'+escapeText(forecast.score||'–')+'</div></div></div>'+
  '<div class="prob">'+['1','X','2'].map(k=>'<div>'+k+'<strong>'+pct(forecast.probabilities[k])+'</strong></div>').join('')+'</div>'+
- '<div class="meta">Odhad úspěšnosti konkrétního tipu: <strong>'+pct(forecast.probabilities[forecast.pick])+'</strong>'+
+ '<div class="meta">Modelová pravděpodobnost vybraného tipu: <strong>'+pct(forecast.probabilities[forecast.pick])+'</strong>'+
  (forecast.xgHome!=null?'<br>Očekávané góly: '+Number(forecast.xgHome).toFixed(2)+' : '+Number(forecast.xgAway).toFixed(2):'')+
  '<br>'+escapeText(forecast.explanation||'Lokální model; nejde o jistotu výsledku.')+
- (forecast.learnedFrom!=null?'<br>Samoučení: '+forecast.learnedFrom+' dříve vyhodnocených vlastních tipů':'')+'</div></article>';
+ (forecast.learnedFrom!=null?'<br>Samoučení: '+escapeText(String(forecast.learnedFrom)):'')+'</div>'+detail+'</article>';
 }
 function status(message,isError=false){
  $('status').textContent=message;$('status').className=isError?'error':'';
@@ -151,7 +172,8 @@ function modelForFixture(match,matches,manual=false){
   {id:match.away_team_id,attack:Number($('away-strength').value),defense:Number($('away-strength').value)}
  ]:useFplSource?livePlContext.teams:[];
  const players=useFplSource?livePlContext.players:[];
- const result=MOD.predictIntelligence(match,history,{config:cfg,teams,players,schedule:history});
+ const result=MOD.predictIntelligence(match,history,{config:cfg,teams,players,schedule:history,
+  futureCupFixtures:useFplSource?(livePlContext.futureCupFixtures||[]):[]});
  return current==='hockey'?HOCK.calibrateRegulationHockey(result,hockeyProfile):result;
 }
 function updateHistory(played){
