@@ -19,8 +19,9 @@ jobs:
         run: |
           node --check app/src/main/assets/model.js
           node --check app/src/main/assets/app.js
+          if [ -f research/hockeyV2.mjs ]; then node --check research/hockeyV2.mjs; fi
           node --test test/model.test.cjs
-          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs; fi
+          if [ -f research/modelV2.test.mjs ]; then node --test research/modelV2.test.mjs research/czechLearning.test.mjs research/hockeyV2.test.mjs; fi
       - name: Compile online-learning browser engine and audited CZ archive
         run: |
           if [ -f research/browserAdapter.mjs ]; then
