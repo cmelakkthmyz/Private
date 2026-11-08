@@ -32,8 +32,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class MainActivity extends Activity {
     private WebView webView;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    // Loading a whole league can take a while. Do not queue the user's odds
+    // refresh behind unrelated football, hockey and result downloads.
+    private final ExecutorService oddsExecutor = Executors.newSingleThreadExecutor();
     private final AtomicInteger requestSerial = new AtomicInteger(0);
-    // All requests run on the single background executor. PulseScore BASIC
+    private final AtomicInteger latestOddsRequest = new AtomicInteger(0);
+    // All odds requests run on one background executor. PulseScore BASIC
     // allows only one request per second per bookmaker, including pagination.
     private long lastChanceRequestMs = 0L;
     private final ConcurrentHashMap<String, String> cachedFeeds = new ConcurrentHashMap<>();
@@ -173,24 +177,28 @@ public final class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public void loadChanceOdds(int requestId) {
-            executor.execute(()->{
+            latestOddsRequest.set(requestId);
+            oddsExecutor.execute(()->{
+                if(requestId!=latestOddsRequest.get())return;
                 String payload;
                 try{
-                    payload=downloadChanceOdds().toString();
+                    payload=downloadChanceOdds(requestId).toString();
                 }catch(Exception e){
                     payload="{\"error\":"+JSONObject.quote(
                         "Kurzy Chance: "+(e.getMessage()==null?"nedostupné":e.getMessage()))+"}";
                 }
                 final String result=payload;
                 runOnUiThread(()->{
-                    if(webView!=null)webView.evaluateJavascript(
+                    if(webView!=null&&requestId==latestOddsRequest.get())webView.evaluateJavascript(
                         "window.receiveOdds("+JSONObject.quote(result)+",\"chance\","+requestId+");",null);
                 });
             });
         }
 
         @JavascriptInterface public void loadOdds(int requestId) {
-            executor.execute(() -> {
+            latestOddsRequest.set(requestId);
+            oddsExecutor.execute(() -> {
+                if(requestId!=latestOddsRequest.get())return;
                 String payload;
                 try {
                     String html = readRemote(PublicOdds.SOURCE_URL, "text/html");
@@ -200,7 +208,7 @@ public final class MainActivity extends Activity {
                 }
                 final String result = payload;
                 runOnUiThread(() -> {
-                    if (webView != null) webView.evaluateJavascript(
+                    if (webView != null && requestId==latestOddsRequest.get()) webView.evaluateJavascript(
                         "window.receiveOdds(" + JSONObject.quote(result) + ",\"tipsport\","+requestId+");", null);
                 });
             });
@@ -477,7 +485,7 @@ public final class MainActivity extends Activity {
 
     // Read-only Chance pre-match board from documented independent API.
     // No bookmaker account is accessed, and no bets are placed.
-    private JSONObject downloadChanceOdds() throws Exception {
+    private JSONObject downloadChanceOdds(int requestId) throws Exception {
         String key=ChanceKeyStore.load(this);
         if(key==null||key.trim().isEmpty())
             throw new IllegalStateException("Chybí API klíč PulseScore. Bez klíče nelze ověřit kurzy Chance.");
@@ -486,6 +494,8 @@ public final class MainActivity extends Activity {
         for(int index=0;index<types.length;index++){
             JSONArray destination=index==0?soccer:hockey;
             for(int page=1;page<=4;page++){
+                if(requestId!=latestOddsRequest.get()||Thread.currentThread().isInterrupted())
+                    throw new java.util.concurrent.CancellationException();
                 String url=ChanceOddsFeed.API+types[index]+"/events?page="+page+"&limit=30";
                 String response=readChancePage(url,key);
                 JSONObject json=new JSONObject(response);
@@ -572,6 +582,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         executor.shutdownNow();
+        oddsExecutor.shutdownNow();
         if (webView != null) { webView.destroy(); webView = null; }
         super.onDestroy();
     }
