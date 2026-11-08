@@ -15,7 +15,9 @@ const makeDom=()=>{
   'profile-balanced','profile-longshot','profile-draws',
   'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
   'paper-pending','paper-completed','paper-profit','paper-status',
-  'paper-create','paper-check','paper-history'
+  'paper-create','paper-check','paper-history',
+  'odds-provider','chance-api-settings','chance-api-key','save-chance-key',
+  'clear-chance-key','chance-key-status'
  ];
  const controls={};
  for(const id of ids)controls[id]={
@@ -30,7 +32,11 @@ const makeDom=()=>{
   console,URL,Intl,Date,Math,JSON,Array,Object,Number,String,Error,Boolean,Map,Set,Float64Array,
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
-  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);}},
+  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);},
+   loadChanceOdds(){calls.push('chance');},
+   chanceKeyStatus(){calls.push('chance-key-status');},
+   saveChanceApiKey(key){calls.push('save-key');},
+   clearChanceApiKey(){calls.push('clear-key');}},
  };
  ctx.globalThis=ctx;ctx.window=ctx;
  const scope=vm.createContext(ctx);
@@ -292,4 +298,48 @@ test('three-leg longshot with only two verified matches explains why it cannot b
  const html=t.controls['auto-results'].innerHTML;
  assert.ok(html.includes('vyžaduje 3 různá ověřená utkání'),html);
  assert.ok(!html.includes('POUZE SIMULACE'));
+});
+
+
+test('Chance API provider selection is real and never silently substitutes Tipsport prices',()=>{
+ const t=makeDom();
+ assert.equal(t.controls['odds-provider'].value,'tipsport');
+ const before=t.calls.filter(x=>x==='chance').length;
+ t.controls['odds-provider'].value='chance';
+ t.controls['odds-provider'].listeners.change();
+ assert.equal(t.calls.filter(x=>x==='chance').length,before+1);
+ assert.ok(t.controls['source-notice'].textContent.includes('Chance'));
+ assert.equal(t.saved.get('sport-odds-provider'),'chance');
+ const sample=[{id:'T1',league:'pl',home:'Arsenal',away:'Liverpool',
+   kickoff:t.upcoming,odds:{'1':2.4,X:3.5,'2':3.1},
+   bookmaker:'Tipsport',sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html',
+   fetchedAt:new Date().toISOString()}];
+ t.ctx.receiveOdds(JSON.stringify({offers:sample,bookmaker:'Tipsport',fetchedAt:new Date().toISOString()}),'tipsport');
+ assert.equal(t.controls['odds-total'].textContent,'0');
+ assert.ok(!t.saved.get('auto-odds-v1:chance'));
+ const actual=sample.map(x=>({...x,id:'C1',bookmaker:'Chance',
+    sourceUrl:'https://www.chance.cz/kurzy'}));
+ t.ctx.receiveOdds(JSON.stringify({offers:actual,bookmaker:'Chance',fetchedAt:new Date().toISOString()}),'chance');
+ assert.equal(t.controls['odds-total'].textContent,'1');
+ assert.ok(t.saved.get('auto-odds-v1:chance'));
+ assert.equal(t.saved.get('auto-odds-v1'),undefined);
+ t.controls['odds-provider'].value='tipsport';
+ t.controls['odds-provider'].listeners.change();
+ assert.ok(t.controls['source-notice'].textContent.includes('Tipsport'));
+ assert.equal(t.controls['odds-total'].textContent,'0');
+});
+test('PulseScore key is passed only to Android encrypted bridge, never saved in web localStorage',()=>{
+ const t=makeDom();
+ t.controls['odds-provider'].value='chance';
+ t.controls['odds-provider'].listeners.change();
+ t.controls['chance-api-key'].value='012345678901abcdef';
+ t.controls['save-chance-key'].listeners.click();
+ assert.equal(t.controls['chance-api-key'].value,'');
+ assert.ok(t.calls.includes('save-key'));
+ assert.ok(![...t.saved.values()].some(value=>String(value).includes('012345678901abcdef')));
+ const before=t.calls.filter(v=>v==='chance').length;
+ t.ctx.receiveChanceKeyStatus(true,'API klíč je uložen');
+ assert.equal(t.calls.filter(v=>v==='chance').length,before+1);
+ t.controls['clear-chance-key'].listeners.click();
+ assert.ok(t.calls.includes('clear-key'));
 });
