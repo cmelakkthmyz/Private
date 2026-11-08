@@ -36,6 +36,19 @@ public final class MainActivity extends Activity {
     private final ConcurrentHashMap<String, String> cachedFeeds = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> cachedTimes = new ConcurrentHashMap<>();
 
+    @Override protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.evaluateJavascript(
+            "window.sportPredictorOnResume&&window.sportPredictorOnResume();", null);
+    }
+
+    @Override protected void onPause() {
+        if (webView != null) webView.evaluateJavascript(
+            "window.sportPredictorOnPause&&window.sportPredictorOnPause();", null);
+        super.onPause();
+    }
+
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(10, 19, 35));
@@ -226,7 +239,7 @@ public final class MainActivity extends Activity {
             throw new IllegalArgumentException("Neznámá soutěž");
         Long timestamp=cachedTimes.get(league);
         String cached=cachedFeeds.get(league);
-        if (cached != null && timestamp != null && System.currentTimeMillis()-timestamp < 10*60_000L)
+        if (cached != null && timestamp != null && System.currentTimeMillis()-timestamp < 60_000L)
             return cached;
         String data=downloadUncachedFixtures(league);
         cachedFeeds.put(league,data);
