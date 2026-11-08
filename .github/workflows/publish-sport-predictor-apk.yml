@@ -1,0 +1,38 @@
+name: Publish Sport Predictor 3.2.1 APK
+on:
+  push:
+    branches: ['codex/sport-predictor-fresh-odds']
+    paths: ['.github/workflows/publish-sport-predictor-apk.yml']
+
+concurrency: sport-predictor-android-3.2.1
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_RUN: '42493376554'
+      SOURCE_COMMIT: '823d4e542998ecbb8507dfa24b51b048af585cff'
+      APK_SHA256: '5252a44f091d3029ae7a86053306d2175bed6324a77dcc2818f981b5dd876764'
+      APK_NAME: 'SportPredictorAI-Android-3.2.1.apk'
+      RELEASE_TAG: 'sport-predictor-android-3.2.1'
+    steps:
+      - name: Publish the verified APK from the successful build
+        shell: bash
+        run: |
+          gh run view "$SOURCE_RUN" --json headSha,conclusion |
+            jq -e --arg sha "$SOURCE_COMMIT" '.headSha == $sha and .conclusion == "success"' >/dev/null
+          gh run download "$SOURCE_RUN" --name PremierLeaguePredictor-Android-APK
+          mv app-debug.apk "$APK_NAME"
+          printf '%s  %s\n' "$APK_SHA256" "$APK_NAME" | sha256sum -c
+          if gh release view "$RELEASE_TAG" --json assets             | jq -e --arg name "$APK_NAME" '.assets | any(.name == $name)' >/dev/null; then
+            exit 0
+          fi
+          gh release create "$RELEASE_TAG" "$APK_NAME" --target "$SOURCE_COMMIT" \
+            --prerelease --title 'Sport Predictor AI pro Android 3.2.1' \
+            --notes "Testovací APK pro Android 8 a vyšší. Sestavení a testy: https://github.com/$GH_REPO/actions/runs/$SOURCE_RUN"
