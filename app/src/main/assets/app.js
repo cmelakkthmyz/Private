@@ -320,7 +320,7 @@ function renderSchedule(events,receivedAt,cache=false){
   try{
    const forecast=futureForecast(m,parsed,state);
    ticketCandidates.push({id:m.id,home:m.home_team_name,away:m.away_team_name,
-    league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:current==='pl'&&Number(VALIDATED.comparison?.holdoutChosen?.n||0)>=350,
+    league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:false,
     pick:forecast.pick,probabilities:forecast.probabilities});
    return scoreCard(m.home_team_name,m.away_team_name,forecast,
     new Date(m.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
@@ -445,8 +445,7 @@ function collectCandidatesForLeague(league,payload){
     try{
      const tip=futureForecast(m,rows,state);
      chosen.push({id:m.id,home:m.home_team_name,away:m.away_team_name,league,
-      kickoff:m.kickoff,status:'scheduled',modelVerified:league==='pl'&&
-       Number(VALIDATED.comparison?.holdoutChosen?.n||0)>=350,
+      kickoff:m.kickoff,status:'scheduled',modelVerified:false,
       probabilities:tip.probabilities,pick:tip.pick});
     }catch(e){}
    }
