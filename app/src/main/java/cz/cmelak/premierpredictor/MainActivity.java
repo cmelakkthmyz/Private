@@ -50,6 +50,23 @@ public final class MainActivity extends Activity {
     }
 
     private final class Bridge {
+        @JavascriptInterface public void loadOdds() {
+            executor.execute(() -> {
+                String payload;
+                try {
+                    String html = readRemote(PublicOdds.SOURCE_URL, "text/html");
+                    payload = PublicOdds.fromHtml(html, System.currentTimeMillis()).toString();
+                } catch (Exception e) {
+                    payload = "{\\"error\\":" + JSONObject.quote("Automatické načítání kurzů: " + e.getMessage()) + "}";
+                }
+                final String result = payload;
+                runOnUiThread(() -> {
+                    if (webView != null) webView.evaluateJavascript(
+                        "window.receiveOdds(" + JSONObject.quote(result) + ");", null);
+                });
+            });
+        }
+
         @JavascriptInterface public void loadFixtures(String league) {
             final int serial = requestSerial.incrementAndGet();
             executor.execute(() -> {
@@ -151,10 +168,14 @@ public final class MainActivity extends Activity {
     }
 
     private String readRemote(String address) throws Exception {
+        return readRemote(address, "application/json");
+    }
+
+    private String readRemote(String address, String accept) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(address).openConnection();
         conn.setConnectTimeout(11000);
         conn.setReadTimeout(14000);
-        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Accept", accept);
         conn.setRequestProperty("User-Agent", "PremierLeaguePredictor/2.1 Android");
         try {
             int code = conn.getResponseCode();
