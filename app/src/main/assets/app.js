@@ -324,7 +324,7 @@ function absorbVerifiedOutcomes(results){
 function officialFootballResults(league,events){
  const valid=[];
  for(const e of events||[]){
-  if(!e?.status?.type?.completed)continue;
+  if(!(e?.status?.type?.completed===true || e?.status?.type?.name==='STATUS_FINAL'))continue;
   const pair=e.competitions?.[0]?.competitors||[];
   const home=pair.find(x=>x.homeAway==='home'),away=pair.find(x=>x.homeAway==='away');
   if(!home||!away)continue;
@@ -382,6 +382,8 @@ function renderOdds(){
  const candidates=Object.values(candidatesByLeague).flat();
  const matches=fresh?bookmakerOffers.map(offer=>AUTO.matchOffer(offer,candidates))
   .filter(Boolean):[];
+ paperMatched=matches;
+ renderPaper();
  const uniqueIds=new Set(matches.map(x=>x.fixture.id));
  $('odds-total').textContent=String(total);
  $('odds-matched').textContent=String(uniqueIds.size);
@@ -477,6 +479,7 @@ function setTicketStake(value){
 function renderSchedule(events,receivedAt,cache=false){
  const parsed=events.map(eventFromEspn).filter(Boolean);
  if(!parsed.length)throw Error('Zdroj nevrátil ověřitelná utkání');
+ absorbVerifiedOutcomes(officialFootballResults(current,events));
  sessionMatches=parsed;refillSelects();
  const {state,changes}=updateHistory(parsed);
  const now=Date.now();
@@ -605,6 +608,7 @@ function collectCandidatesForLeague(league,payload){
   }else{
    const rows=(payload.events||[]).map(eventFromEspn).filter(Boolean);
    if(!rows.length)throw Error('Žádné ověřené zápasy');
+   absorbVerifiedOutcomes(officialFootballResults(league,payload.events||[]));
    const {state}=updateHistory(rows);
    const future=rows.filter(x=>x.status!=='finished'&&Date.parse(x.kickoff)>now)
      .sort((a,b)=>Date.parse(a.kickoff)-Date.parse(b.kickoff)).slice(0,80);
@@ -631,6 +635,7 @@ globalThis.receiveAllLeagues=function(raw){
  }catch(e){backgroundErrors.system=e.message||'Neplatná data'}
  renderOdds();
  if(current==='pl')renderCoverage();
+ requestHockeyPaperResults();
 };
 
 globalThis.receiveMatches=function(raw,requestedLeague){
@@ -693,11 +698,15 @@ for(const profile of ['balanced','longshot','draws'])
  $('profile-'+profile).addEventListener('click',()=>setTicketProfile(profile));
 for(const stake of [10,20,50])
  $('stake-'+stake).addEventListener('click',()=>setTicketStake(stake));
+$('paper-create').addEventListener('click',createPaperFromLive);
+$('paper-check').addEventListener('click',checkPaperResults);
 $('scan-odds').addEventListener('click',()=>loadAutomaticOdds(true));
 try{
  const restored=JSON.parse(localStorage.getItem('live-pl-context-v1')||'null');
  if(restored)acceptLiveContext({context:restored});
 }catch(e){}
 changeLeague('pl');
+renderPaper();
 loadAutomaticOdds(true);
+requestHockeyPaperResults();
 })();
