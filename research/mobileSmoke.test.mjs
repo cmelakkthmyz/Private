@@ -379,7 +379,7 @@ test('model-first planner shows forecast probabilities and ticket draft without 
  assert.ok(t.controls['model-ticket-status'].textContent.includes('3 budoucích zápasů'));
  const html=t.controls['model-ticket-results'].innerHTML;
  assert.ok(html.includes('SOLO'),html);
- assert.ok(html.includes('AKO'),html);
+ assert.ok(html.includes('AKU'),html);
  assert.ok(html.includes('KOMBI'),html);
  assert.ok(html.includes('MAXIKOMBI'),html);
  assert.ok(html.includes('Bez ověřených kurzů'),html);
