@@ -78,3 +78,14 @@ for(const suffix of ['competition/chance-liga-2026-2/2026',
    data:JSON.stringify(j||tx).slice(0,5500)}));
  }catch(e){console.log('DENIK_LIGA_LIVE_ERROR',suffix,String(e).slice(0,170))}
 }
+
+for(const suffix of ['matches/get-matches-in-round/chance-liga-2026-2/2026?roundName=14',
+ 'matches/get-matches-in-round/chance-liga-2026-2/2026?roundName=13',
+ 'matches/get-matches-in-round/chance-liga-2026-2/2026?roundName=1',
+ 'matches/get-matches-in-round/chance-liga-2026-2/2026?roundName=14&day=2026-11-08']){
+ try{
+  const r=await fetch(root+suffix,{signal:AbortSignal.timeout(10000)});
+  const tx=await r.text();console.log('DENIK_ROUND_DETAIL',JSON.stringify({
+    suffix,status:r.status,length:tx.length,body:tx.slice(0,7200)}));
+ }catch(e){console.log('DENIK_ROUND_ERROR',suffix,String(e).slice(0,140))}
+}
