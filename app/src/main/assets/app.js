@@ -50,6 +50,8 @@ const ALIASES={
 let current='pl',sessionMatches=[],sessionTeams=[],lastPayload=null,lastUpdated=null;
 let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
+let oddsProvider=localStorage.getItem('sport-odds-provider')==='chance'?'chance':'tipsport';
+const oddsCacheKey=()=>oddsProvider==='chance'?'auto-odds-v1:chance':'auto-odds-v1';
 let livePlContext=null,livePlTimestamp=null,backgroundErrors={};
 const candidatesByLeague={pl:[],cz:[],hockey:[]};
 let paperLedger=loadPaperLedger(),paperMatched=[],paperNote='';
@@ -389,7 +391,8 @@ function renderOdds(){
  $('odds-updated').textContent=oddsReceivedAt?new Date(oddsReceivedAt).toLocaleTimeString('cs-CZ',
   {hour:'2-digit',minute:'2-digit'}):'–';
  $('odds-status').textContent=oddsError||(fresh?
-  'Načtená nabídka Tipsportu · propojuji jen shodná utkání se spolehlivým datem a výsledkovým zdrojem.' :
+  'Načtená nabídka '+(oddsProvider==='chance'?'Chance (PulseScore)':'Tipsport (veřejný přehled)')+
+   ' · propojuji jen shodná utkání se spolehlivým datem a výsledkovým zdrojem.' :
   total?'Kurzy jsou starší než 14 hodin. Stará nabídka se nepoužívá.':
   'Čekám na automatické načtení aktuálních kurzů.');
  $('odds-status').className='odds-status'+(oddsError||total&&!fresh?' error':'');
@@ -485,42 +488,103 @@ function matchingDiagnostics(offers,matched,candidates){
  return lines.join(' · ')+'. Nespárované nabídky mohou mít jiný název klubu, nesouhlasící datum/čas, chybějící program nebo neověřená data. Takové zápasy bez potvrzení nesimuluji.';
 }
 
+function changeOddsProvider(value){
+ if(!['tipsport','chance'].includes(value))return;
+ oddsProvider=value;
+ try{localStorage.setItem('sport-odds-provider',value);}catch(e){}
+ bookmakerOffers=[];oddsReceivedAt=null;oddsError='';
+ $('odds-provider').value=value;
+ $('chance-api-settings').open=value==='chance';
+ $('source-notice').textContent=value==='chance'?
+  'Chance: nabídka přes nezávislé rozhraní PulseScore s vlastním API klíčem (bezplatný BASIC). Předzápasové kurzy nejsou z tvého účtu a mohou se změnit. Žádné sázení ani přihlašování.':
+  'Tipsport: veřejný časově omezený přehled SazkyWeb.cz. Nejde o živou garantovanou cenu.';
+ renderOdds();
+ loadAutomaticOdds(true);
+}
 function loadAutomaticOdds(refresh=true){
- if(refresh){oddsError='';$('odds-status').textContent='Procházím veřejnou denní nabídku Tipsportu…';}
- if(globalThis.AndroidPredictor?.loadOdds){
-   globalThis.AndroidPredictor.loadOdds();
-   if(refresh&&globalThis.AndroidPredictor.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
+ if(refresh){
+  oddsError='';
+  $('odds-status').textContent=oddsProvider==='chance'?
+   'Načítám skutečné předzápasové kurzy Chance z API PulseScore…':
+   'Procházím veřejnou nabídku Tipsportu…';
+ }
+ if(globalThis.AndroidPredictor){
+  if(oddsProvider==='chance'){
+   if(globalThis.AndroidPredictor.loadChanceOdds)globalThis.AndroidPredictor.loadChanceOdds();
+   else{
+    oddsError='Aktuální Android verze neobsahuje podporu Chance API.';
+    renderOdds();return;
+   }
+  }else{
+   if(globalThis.AndroidPredictor.loadOdds)globalThis.AndroidPredictor.loadOdds();
+   else{
+    oddsError='Načítání veřejných kurzů není v této aplikaci dostupné.';
+    renderOdds();return;
+   }
+  }
+  if(refresh&&globalThis.AndroidPredictor.loadAllLeagues)
+   globalThis.AndroidPredictor.loadAllLeagues();
  }else{
-   oddsError='Načítání veřejných kurzů je dostupné v instalované Android aplikaci.';
-   renderOdds();
+  oddsError='Načítání kurzů je dostupné pouze v instalované Android aplikaci.';
+  renderOdds();
  }
 }
-globalThis.receiveOdds=function(raw){
+globalThis.receiveOdds=function(raw,origin){
+ // Asynchronous responses from a previous source cannot overwrite the chosen source.
+ if(origin&&origin!==oddsProvider)return;
  try{
   const data=JSON.parse(raw);
   if(data.error)throw Error(data.error);
-  if(!Array.isArray(data.offers)||!data.offers.length)throw Error('Veřejný zdroj neposkytuje ověřitelné kurzy 1/X/2.');
+  const expected=oddsProvider==='chance'?'Chance':'Tipsport';
+  if(data.bookmaker&&data.bookmaker!==expected)throw Error('Nesouhlasí zdroj kurzů '+data.bookmaker);
+  if(!Array.isArray(data.offers)||!data.offers.length)
+   throw Error('Zdroj '+expected+' dnes nevrátil ověřené předzápasové kurzy 1/X/2 pro sledované soutěže.');
   bookmakerOffers=data.offers.map(AUTO.normalizeOffer).filter(Boolean);
-  if(!bookmakerOffers.length)throw Error('Žádná platná kurzová nabídka pro sledované ligy.');
+  if(!bookmakerOffers.length)throw Error('Žádná platná nabídka pro sledované soutěže.');
   oddsReceivedAt=data.fetchedAt||new Date().toISOString();
   oddsError='';
-  try{localStorage.setItem('auto-odds-v1',JSON.stringify({
-   offers:bookmakerOffers,fetchedAt:oddsReceivedAt,source:data.source
-  }));}catch(e){}
- }catch(e){
-  oddsError=e.message||'Kurzy se nepodařilo načíst.';
-  // Cached data are shown only if demonstrably less than fourteen hours old.
   try{
-   const prev=JSON.parse(localStorage.getItem('auto-odds-v1')||'null');
-   if(prev?.fetchedAt&&Date.now()-Date.parse(prev.fetchedAt)<14*3600000){
+   localStorage.setItem(oddsCacheKey(),JSON.stringify({
+    offers:bookmakerOffers,fetchedAt:oddsReceivedAt,
+    source:data.source,bookmaker:expected
+   }));
+  }catch(e){}
+ }catch(e){
+  bookmakerOffers=[];oddsReceivedAt=null;
+  oddsError=e.message||'Kurzy se nepodařilo načíst.';
+  // Only restore a timestamped snapshot for the SAME bookmaker, never the other one.
+  try{
+   const prev=JSON.parse(localStorage.getItem(oddsCacheKey())||'null');
+   const valid=prev?.fetchedAt&&Date.now()-Date.parse(prev.fetchedAt)<14*3600000;
+   const expected=oddsProvider==='chance'?'Chance':'Tipsport';
+   if(valid&&prev.bookmaker===expected){
     bookmakerOffers=(prev.offers||[]).map(AUTO.normalizeOffer).filter(Boolean);
     oddsReceivedAt=prev.fetchedAt;
-    oddsError+=' · Poslední uložený snapshot. Před sázkou cenu znovu ověř.';
+    oddsError+=' · Uložený starší přehled, cenu před případnou sázkou ověř.';
    }
   }catch(x){}
  }
  renderOdds();
 };
+globalThis.receiveChanceKeyStatus=function(configured,message){
+ $('chance-key-status').textContent=(configured?'Nastaveno: ':'Není nastaveno: ')+String(message||'');
+ if(configured&&oddsProvider==='chance')loadAutomaticOdds(true);
+};
+function saveChanceApiKey(){
+ const field=$('chance-api-key'),value=field.value;
+ field.value='';
+ if(!globalThis.AndroidPredictor?.saveChanceApiKey){
+  $('chance-key-status').textContent='Šifrované uložení je podporováno jen v Android aplikaci.';
+  return;
+ }
+ if(!value||value.length<12){
+  $('chance-key-status').textContent='Zadej klíč PulseScore, ne heslo ke Chance.';
+  return;
+ }
+ globalThis.AndroidPredictor.saveChanceApiKey(value);
+ $('chance-key-status').textContent='Ukládám API klíč šifrovaně do telefonu…';
+}
+
 function setTicketProfile(name){
  if(!['balanced','longshot','draws'].includes(name))return;
  ticketProfile=name;
@@ -758,6 +822,14 @@ for(const stake of [10,20,50])
 $('paper-create').addEventListener('click',createPaperFromLive);
 $('paper-check').addEventListener('click',checkPaperResults);
 $('scan-odds').addEventListener('click',()=>loadAutomaticOdds(true));
+$('odds-provider').value=oddsProvider;
+$('odds-provider').addEventListener('change',()=>changeOddsProvider($('odds-provider').value));
+$('save-chance-key').addEventListener('click',saveChanceApiKey);
+$('clear-chance-key').addEventListener('click',()=>{
+ if(globalThis.AndroidPredictor?.clearChanceApiKey)globalThis.AndroidPredictor.clearChanceApiKey();
+ else $('chance-key-status').textContent='Klíč není uložen.';
+});
+if(oddsProvider==='chance')$('chance-api-settings').open=true;
 try{
  const restored=JSON.parse(localStorage.getItem('live-pl-context-v1')||'null');
  if(restored)acceptLiveContext({context:restored});
