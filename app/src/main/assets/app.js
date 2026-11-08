@@ -222,7 +222,8 @@ function updateHistory(played){
 function futureForecast(match,all,state){
  const base=modelForFixture(match,all),at=new Date().toISOString();
  const existing=state.events.find(e=>e.id===match.id);
- const snapshot=existing||MOD.adaptivePrediction(LEAGUES[current].namespace,base,null,state,at);
+ // Journal forecasts remain frozen; visible predictions are always recalculated.
+ const snapshot=MOD.adaptivePrediction(LEAGUES[current].namespace,base,null,state,at);
  if(!existing){
   try{
    if(MOD.recordForecast(state,{id:match.id,competition:LEAGUES[current].namespace,
@@ -232,8 +233,8 @@ function futureForecast(match,all,state){
  }
  return {...base,pick:snapshot.pick,probabilities:snapshot.probabilities,
   score:scoreForSelectedPick(base.xgHome,base.xgAway,snapshot.pick),
-  confidence:snapshot.probabilities[snapshot.pick],learnedFrom:existing?'původní uložený tip':'průběžný model',
-  explanation:existing?'Původní předzápasový tip z '+new Date(existing.predictedAt).toLocaleString('cs-CZ')+'.':'Lokální ensemble: Poisson, Elo a váhy upravované podle minulých chyb.'};
+  confidence:snapshot.probabilities[snapshot.pick],learnedFrom:existing?'aktualizováno; archivní tip zachován':'průběžný model',
+  explanation:'Aktuální analýza: Poisson, Elo a váhy upravované podle ověřených výsledků.'};
 }
 
 
@@ -398,7 +399,8 @@ function renderModelTickets(){
  const entries=Object.values(candidatesByLeague).flat();
  if(!entries.length){info.textContent='Čekám na první načtené zápasy. Placené API není potřeba.';el.innerHTML='';return;}
  try{
-  const paired=bookmakerOffers.map(o=>AUTO.matchOffer(o,entries)).filter(Boolean);
+  const freshApiPrice=oddsProvider!=='tipsport'&&oddsReceivedAt&&Date.now()-Date.parse(oddsReceivedAt)<5*60_000;
+  const paired=freshApiPrice?bookmakerOffers.map(o=>AUTO.matchOffer(o,entries)).filter(Boolean):[];
   const prices=new Map(paired.map(x=>[x.fixture.id,x.offer]));
   const priced=entries.map(x=>({...x,odds:prices.get(x.id)?.odds,bookmaker:prices.get(x.id)?.bookmaker}));
   const data=MODEL_TICKETS.buildModelTicketSuggestions(priced,{stake:ticketStake,maxMatches:modelTicketMax});
@@ -646,7 +648,7 @@ function setTicketProfile(name){
 function setTicketStake(value){
  ticketStake=value;
  for(const k of [10,20,50])$('stake-'+k).setAttribute('aria-pressed',String(k===value));
- renderOdds();
+ renderModelTickets();renderOdds();
 }
 
 function renderSchedule(events,receivedAt,cache=false){
