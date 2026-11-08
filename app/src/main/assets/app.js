@@ -18,7 +18,7 @@ function scoreForSelectedPick(xgHome,xgAway,pick){
   return score;
 }
 
-const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel;
+const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
 const HOCKEY=['Bílí Tygři Liberec','Dynamo Pardubice','HC Energie Karlovy Vary','HC Kometa Brno',
  'HC Motor České Budějovice','HC Olomouc','HC Oceláři Třinec','HC Sparta Praha',
@@ -46,6 +46,7 @@ const ALIASES={
  'Teplice':'Teplice','Slovacko':'Slovácko','Zlin':'Zlín','Dukla Prague':'Dukla Praha'
 };
 let current='pl',sessionMatches=[],sessionTeams=[],lastPayload=null,lastUpdated=null;
+let hockeyStandings=null,hockeyUpdated=null;
 const canonical=name=>ALIASES[name]||String(name||'').replace(/ FC$/,'').trim();
 const storeKey=league=>'premier-intelligence-online-v1:'+LEAGUES[league].namespace;
 function readState(){
@@ -109,15 +110,20 @@ function modelForFixture(match,matches,manual=false){
  const league=LEAGUES[current];
  const historical=archiveMatches();
  const history=historical.concat(matches||[]);
+ const hockeyProfile=current==='hockey'?HOCK.hockeyStandingsProfile(hockeyStandings):null;
+ const profileRates=current==='hockey'?HOCK.hockeyFixtureRates(hockeyProfile,match.home_team_id,match.away_team_id):null;
  const cfg={
-  prior:6,power:.87,eloWeight:.25,marketWeight:0,priorityWeight:.40,
-  useFpl:manual,homeBase:league.homeBase,awayBase:league.awayBase,decayDays:135
+  prior:6,power:.87,eloWeight:current==='hockey'?.12:.25,marketWeight:0,
+  priorityWeight:current==='hockey'?0:.40,
+  useFpl:manual,homeBase:profileRates?.homeBase??league.homeBase,
+  awayBase:profileRates?.awayBase??league.awayBase,decayDays:135
  };
  const teams=manual?[
   {id:match.home_team_id,attack:Number($('home-strength').value),defense:Number($('home-strength').value)},
   {id:match.away_team_id,attack:Number($('away-strength').value),defense:Number($('away-strength').value)}
  ]:[];
- return MOD.predictIntelligence(match,history,{config:cfg,teams,schedule:history});
+ const result=MOD.predictIntelligence(match,history,{config:cfg,teams,schedule:history});
+ return current==='hockey'?HOCK.calibrateRegulationHockey(result,hockeyProfile):result;
 }
 function updateHistory(played){
  const state=readState();let changes=0;
@@ -170,6 +176,42 @@ function renderSchedule(events,receivedAt,cache=false){
  'Aktualizace '+new Date(receivedAt).toLocaleString('cs-CZ'));
  renderCoverage(state);
 }
+
+function renderHockey(raw,fromCache=false){
+ if(raw.sport!=='hockey')throw Error('Neznámý formát hokejových dat');
+ if(!Array.isArray(raw.standings)||raw.standings.length<10)throw Error('Zdroj nevrátil platnou tabulku');
+ hockeyStandings=raw.standings;
+ hockeyUpdated=raw.updated;
+ // Hockey table is a current snapshot, NOT an individual 60-minute match archive.
+ // It may inform a future prediction; it cannot retroactively settle old 1/X/2 bets.
+ sessionMatches=[];
+ refillSelects();
+ const now=Date.now(),sourceEntries=raw.scheduleCurrent&&Array.isArray(raw.events)?raw.events:[];
+ const future=sourceEntries.filter(e=>e.date&&Date.parse(e.date)>now&&e.home&&e.away)
+  .sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+ const state=readState();
+ $('matches').innerHTML=future.map(e=>{
+  const home=HOCK.hockeyTeamKey(e.home),away=HOCK.hockeyTeamKey(e.away);
+  const fixture={id:'cz_hockey_daily_'+e.id,kickoff:e.date,season:seasonOf(e.date),
+   home_team_id:home,away_team_id:away,home_team_name:home,away_team_name:away,
+   status:'scheduled',competition:'cz-hockey'};
+  try{
+   const forecast=futureForecast(fixture,[],state);
+   return scoreCard(home,away,forecast,new Date(e.date).toLocaleString('cs-CZ',
+    {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
+  }catch(err){return '<article class="match error">Nelze spočítat zápas '+escapeText(home)+' – '+escapeText(away)+'</article>';}
+ }).join('')||'<article class="match">Pro dnešní den nejsou k dispozici další ověřené zápasy extraligy. Ruční simulace z ligové tabulky funguje.</article>';
+ const age=raw.updated&&Number.isFinite(Date.parse(raw.updated))?Math.round((Date.now()-Date.parse(raw.updated))/3600000):null;
+ status('Česká extraliga: '+future.length+' dnešních utkání · tabulka '+escapeText(raw.updated||'bez data')+
+  (age!==null&&age>48?' · Pozor: starší než 48 hodin':'')+
+  ' · CC BY 4.0, zdroj SazkyWeb.cz'+(fromCache?' · offline kopie':''),
+  Boolean(fromCache||age!==null&&age>48));
+ renderCoverage(state);
+ if(!fromCache){
+  try{localStorage.setItem('hockey-cache-v1',JSON.stringify(raw));}catch(e){}
+ }
+}
+
 function renderCoverage(state=readState()){
  const league=LEAGUES[current];
  const info=MOD.learningSummary(state,new Date().toISOString());
@@ -177,11 +219,19 @@ function renderCoverage(state=readState()){
  const coverage=current==='cz'?
   'Doložené historické sezóny: '+(ARCHIVE.verifiedSeasons||[]).join(', ')+
   ' · '+(ARCHIVE.coverage?.loadedTrainingSeasons||0)+' z 20 požadovaných starších sezón. Chybějící data nejsou doplňována odhady.':
-  current==='hockey'?'Pro český hokej zatím není připojen ověřený archiv zápasů v základní hrací době. Ruční simulace je jen orientační.':
+  current==='hockey'?'Zdroj tabulky: SazkyWeb.cz (CC BY 4.0) · '+(hockeyUpdated||'offline')+'. Statistiky obsahují i góly z prodloužení; výsledek 1/X/2 je předpověď po 60 minutách, experimentální. Bez historie výsledků po 60 minutách se model zatím sám z hokeje neučí.':
   'Premier League: model používá aktuálně známé výsledky a průběžně uložené vlastní tipy.';
  $('coverage').textContent=league.title+' · '+coverage+' · '+recorded;
 }
 function fallback(message){
+ if(current==='hockey'){
+  try{
+   const raw=JSON.parse(localStorage.getItem('hockey-cache-v1')||'null');
+   if(raw){renderHockey({...raw,events:[],scheduleCurrent:false},true);
+    status(message+' · Uložená tabulka může být zastaralá.',true);return;}
+  }catch(e){}
+  status(message+' Ruční základní model funguje offline.',true);$('matches').innerHTML='';return;
+ }
  const saved=localStorage.getItem('espn-cache:'+current);
  if(saved){
   try{
@@ -194,10 +244,14 @@ function fallback(message){
  status(message+' Ruční zápas funguje i bez připojení.',true);
  $('matches').innerHTML='';
 }
-globalThis.receiveMatches=function(raw){
+globalThis.receiveMatches=function(raw,requestedLeague){
+ if(requestedLeague&&requestedLeague!==current)return;
  try{
   const d=JSON.parse(raw);
   if(d.error)throw Error(d.error);
+  if(current==='hockey'){
+   renderHockey(d);return;
+  }
   if(!Array.isArray(d.events)||!d.events.length)throw Error('ESPN neposkytla program');
   const updated=new Date().toISOString();
   lastPayload=d.events;lastUpdated=updated;
@@ -209,10 +263,6 @@ globalThis.receiveMatches=function(raw){
  }catch(e){fallback('Data nelze načíst: '+e.message+'.');}
 };
 function requestSchedule(){
- if(current==='hockey'){
-  status('Česká extraliga: není připojen věrohodný živý zdroj výsledků. Použij ruční zápas.',true);
-  $('matches').innerHTML='';return;
- }
  status('Načítám skutečná utkání '+LEAGUES[current].title+'…');
  if(globalThis.AndroidPredictor?.loadFixtures)globalThis.AndroidPredictor.loadFixtures(current);
  else fallback('Nativní Android připojení není dostupné.');
@@ -221,9 +271,12 @@ function changeLeague(id){
  current=id;lastPayload=null;lastUpdated=null;sessionMatches=[];
  for(const k of Object.keys(LEAGUES))$('league-'+k).setAttribute('aria-pressed',String(k===id));
  $('match-title').textContent='Zápasy – '+LEAGUES[id].title;
- $('manual-hint').textContent=id==='hockey'?'Hokej: třícestný tip je výsledek po 60 minutách, nikoliv po prodloužení. Bez historických dat je predikce pouze orientační.':
+ $('manual-hint').textContent=id==='hockey'?'Hokej 1/X/2: pouze stav po 60 minutách. Síla klubů se při připojení vypočítá z tabulky SazkyWeb.cz; model zůstává experimentální.':
   'Vyber týmy a uprav sílu; výsledky jsou pravděpodobnostní odhady, ne zaručené tipy.';
  $('matches').innerHTML='';$('manual-result').innerHTML='';
+ if(id==='hockey'&&!hockeyStandings){
+  try{const raw=JSON.parse(localStorage.getItem('hockey-cache-v1')||'null');if(raw?.standings){hockeyStandings=raw.standings;hockeyUpdated=raw.updated;}}catch(e){}
+ }
  refillSelects();renderCoverage();requestSchedule();
 }
 for(const id of Object.keys(LEAGUES))$('league-'+id).addEventListener('click',()=>changeLeague(id));
