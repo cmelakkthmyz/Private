@@ -94,10 +94,10 @@ public final class CzechLeagueFeed {
             String time=m.group(1)!=null?m.group(1):"12:00";
             String kickoff=current.atTime(LocalTime.parse(time))
                 .atZone(ZoneId.of("Europe/Prague")).toInstant().toString();
+            if(!known.add(current+"|"+home+"|"+away))continue;
             String id="cc0_"+season+"_"+index++;
             events.put(espnEvent(id,home,away,kickoff,true,h,a));
             finished++;
-            known.add(current+"|"+home+"|"+away);
         }
         if(finished<25||finished>350)
             throw new IllegalArgumentException("Neúplná sezóna Chance Ligy: jen "+finished+" výsledků");
