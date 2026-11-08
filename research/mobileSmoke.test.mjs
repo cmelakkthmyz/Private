@@ -11,7 +11,9 @@ const makeDom=()=>{
   'league-pl','league-cz','league-hockey','coverage','match-title','status','matches',
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
-  'ticket-bookmaker','ticket-count','ticket-legs','ticket-stake','ticket-calc','ticket-result'
+  'odds-status','odds-total','odds-matched','odds-updated',
+  'profile-balanced','profile-longshot','profile-draws',
+  'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice'
  ];
  const controls={};
  for(const id of ids)controls[id]={
@@ -25,7 +27,7 @@ const makeDom=()=>{
   console,URL,Intl,Date,Math,JSON,Array,Object,Number,String,Error,Boolean,Map,Set,Float64Array,
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
-  AndroidPredictor:{loadFixtures(league){calls.push(league);}},
+  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');}},
  };
  ctx.globalThis=ctx;ctx.window=ctx;
  const scope=vm.createContext(ctx);
@@ -56,7 +58,8 @@ test('home page starts with Premier League and requests its actual fixtures',()=
  assert.ok(t.controls.matches.innerHTML.includes('Arsenal'));
  assert.ok(t.controls.matches.innerHTML.includes('Liverpool'));
  assert.ok(t.controls.matches.innerHTML.includes('Tip 1 / X / 2'));
- assert.ok(t.controls['ticket-legs'].innerHTML.includes('ticket-match-0'));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('nejsou ověřené'));
+ assert.equal(t.calls.includes('odds'),true);
 
  const state=JSON.parse(t.saved.get('premier-intelligence-online-v1:pl-football'));
  assert.equal(state.events.length,2);
@@ -105,4 +108,43 @@ test('existing recorded forecast is immutable when data refreshes',()=>{
  assert.equal(after.events.length,1);
  assert.equal(after.events[0].pick,before.events[0].pick);
  assert.equal(after.events[0].predictedAt,before.events[0].predictedAt);
+});
+
+test('automatic odds bridge scans and pairs current bookmaker prices with both fixtures',()=>{
+ const t=makeDom();
+ const second=event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+3600000).toISOString());
+ second.id='s2';
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',t.upcoming),second]}),'pl');
+ const offers=[
+  {id:'test-1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,
+   odds:{'1':5,X:4,'2':2},bookmaker:'Tipsport'},
+  {id:'test-2',league:'pl',home:'Chelsea',away:'Fulham',kickoff:new Date(Date.parse(t.upcoming)+3600000).toISOString(),
+   odds:{'1':5,X:4,'2':2},bookmaker:'Tipsport'}
+ ];
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()}));
+ assert.equal(t.controls['odds-total'].textContent,'2');
+ assert.equal(t.controls['odds-matched'].textContent,'2');
+ assert.ok(t.controls['auto-results'].innerHTML.includes('odpovídá ověřeným utkáním'));
+ assert.ok(!t.controls['auto-results'].innerHTML.includes('ticket-odds-'));
+});
+test('all risk profile and stake controls produce a visible state change',()=>{
+ const t=makeDom();
+ for(const id of ['balanced','longshot','draws']){
+  t.controls['profile-'+id].listeners.click();
+  assert.equal(t.controls['profile-'+id].attributes['aria-pressed'],'true');
+ }
+ for(const stake of [10,50,20]){
+  t.controls['stake-'+stake].listeners.click();
+  assert.equal(t.controls['stake-'+stake].attributes['aria-pressed'],'true');
+ }
+ const before=t.calls.filter(x=>x==='odds').length;
+ t.controls['scan-odds'].listeners.click();
+ assert.equal(t.calls.filter(x=>x==='odds').length,before+1);
+});
+test('no ticket is produced from stale bookmaker snapshot',()=>{
+ const t=makeDom();
+ t.ctx.receiveOdds(JSON.stringify({offers:[{
+  id:'a',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,odds:{'1':2,X:3,'2':4}
+ }],fetchedAt:new Date(Date.now()-20*3600000).toISOString()}));
+ assert.ok(t.controls['auto-results'].innerHTML.includes('platnost vypršela'));
 });
