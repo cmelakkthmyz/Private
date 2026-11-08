@@ -83,15 +83,19 @@ function availabilityFeature(teamId,players){
   for(const p of missing) mass+=(Math.max(0,num(p.xg,0))+.5*Math.max(0,num(p.xa,0))+.03*Math.max(0,num(p.minutes,0))/90)*(1-num(p.chance_of_playing_next_round,0)/100);
   return {adjustment:-clamp(mass/total*.23,0,.12),missing:missing.map(p=>p.name).slice(0,5),count:missing.length,available:true};
 }
-function newsFeature(team,articles,fixture){
+function newsFeature(team,articles,fixture,side){
   const before=asDate(fixture.kickoff),now=Date.now();
   let sum=0;const evidence=[],seen=new Set();
   for(const item of articles||[]){
-    const at=num(item.published);
-    if(!at||at>before||at>now||before-at>14*DAY||item.rumor||!Array.isArray(item.teams))continue;
-    if(item.teams.length!==1)continue; // no guess which of two teams is affected
-    const key=item.teams[0].toLowerCase(),wanted=String(team||'').toLowerCase();
-    if(!wanted||key!==wanted)continue;
+    const at=typeof item.published==='string'?Date.parse(item.published):num(item.published);
+    if(!Number.isFinite(at)||at>before||at>now||before-at>14*DAY||item.rumor||!Array.isArray(item.teams))continue;
+    if(item.teams.length!==1)continue; // refuse ambiguous story mentioning both teams
+    const key=String(item.teams[0]).toLowerCase();
+    const wanted=String(team||'').toLowerCase();
+    if(key!==side&&key!==wanted)continue;
+    // "Not speculative" is NOT proof; only explicit sourced confirmation
+    // can produce a numerical adjustment. All other headlines remain context.
+    if(!/\b(confirmed|confirms|ruled out|official|announced|potvrdil|potvrdila|potvrzeno|potvrzený|potvrzená)\b/i.test(item.title||''))continue;
     const marker=(item.category||'')+'|'+String(item.title||'').toLowerCase();
     if(seen.has(marker))continue;seen.add(marker);
     const cat=item.category;
@@ -124,8 +128,8 @@ function goalRates(states,fixture,teams=[],players=[],articles=[],cfg={}){
   const hf=formFeature(H),af=formFeature(A);
   const hav=cfg.useAvailability===false?{adjustment:0,missing:[],count:0,available:false}:availabilityFeature(H.id,players);
   const aav=cfg.useAvailability===false?{adjustment:0,missing:[],count:0,available:false}:availabilityFeature(A.id,players);
-  const hn=newsFeature(fixture.home_team_name,articles,fixture);
-  const an=newsFeature(fixture.away_team_name,articles,fixture);
+  const hn=newsFeature(fixture.home_team_name,articles,fixture,'home');
+  const an=newsFeature(fixture.away_team_name,articles,fixture,'away');
   // Limited corrections, relative to each side rather than arbitrary full outcome replacement.
   const relativeRest=clamp(hr.adjustment-ar.adjustment,-.08,.08);
   const relativeForm=clamp(hf.adjustment-af.adjustment,-.07,.07);
