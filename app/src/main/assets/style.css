@@ -161,3 +161,25 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .chance-key-buttons button:last-child{background:#3d5765;color:#fff}
 .chance-api-settings a{color:#9bf5da}
 #chance-key-status{color:#e9cba1;font-size:11px}
+
+
+/* Forecast-first ticket builder: one-screen clarity on narrow Android phones. */
+.model-first{margin-top:17px;border:2px solid #64c4b4}
+.model-ticket-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:13px 0}
+.model-ticket-controls label{font-size:12px;font-weight:700;color:#bcdde3}
+.model-ticket-controls select{display:block;max-width:100%;width:100%;min-height:44px;
+ margin-top:7px;background:#132a3a;color:#f2faff;border:1px solid #558293;border-radius:10px;padding:8px}
+.model-ticket{background:#102a3b;margin:12px 0}
+.model-leg{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;
+ align-items:center;padding:12px 3px;border-bottom:1px solid #33536a}
+.model-leg>div{min-width:0}
+.model-leg strong{font-size:13px;overflow-wrap:anywhere}
+.model-leg small{display:block;font-size:11px;color:#b5d0d7;line-height:1.55;margin-top:3px}
+.model-letter{background:#2d5f61;color:#c8fff3;border-radius:8px;padding:5px 0;text-align:center}
+.model-pick{display:flex;flex-direction:column;align-items:center;color:#9deec9;font-size:21px!important;min-width:48px}
+.model-pick small{font-size:11px;text-align:center}
+.model-split{font-size:12px;color:#d5e8ed;margin:13px 0 5px}
+.model-ticket table{width:100%;font-size:12px;border-collapse:collapse}
+.model-ticket th,.model-ticket td{padding:8px;text-align:left;border-bottom:1px solid #305267}
+.model-ticket td:nth-child(n+2),.model-ticket th:nth-child(n+2){text-align:right}
+@media(max-width:370px){.model-ticket-controls{grid-template-columns:1fr}}
