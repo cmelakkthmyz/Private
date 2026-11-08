@@ -89,4 +89,4 @@ export function assessMatchPriority(fixture,fixtures=[],context={}){
  return {home,away,tableSize:table.clubCount,tableMatches:table.played,
     note:'Rotace a ligové priority jsou pravděpodobnostní signály, nikoliv tvrzení, že tým nechce vyhrát.'};
 }
-function round(n,d){return Number(n.toFixed(d))}
+function round(n,d=3){return Number(n.toFixed(d))}
