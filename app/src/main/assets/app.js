@@ -378,56 +378,113 @@ function checkPaperResults(){
 
 function renderOdds(){
  const total=bookmakerOffers.length;
- const fresh=oddsReceivedAt&&Date.now()-Date.parse(oddsReceivedAt)<14*3600000;
+ const fresh=Boolean(oddsReceivedAt && Date.now()-Date.parse(oddsReceivedAt)<14*3600000);
  const candidates=Object.values(candidatesByLeague).flat();
- const matches=fresh?bookmakerOffers.map(offer=>AUTO.matchOffer(offer,candidates))
-  .filter(Boolean):[];
- paperMatched=matches;
+ const matched=fresh?bookmakerOffers.map(offer=>AUTO.matchOffer(offer,candidates)).filter(Boolean):[];
+ paperMatched=matched;
  renderPaper();
- const uniqueIds=new Set(matches.map(x=>x.fixture.id));
+ const ids=new Set(matched.map(x=>x.fixture.id));
  $('odds-total').textContent=String(total);
- $('odds-matched').textContent=String(uniqueIds.size);
+ $('odds-matched').textContent=String(ids.size);
  $('odds-updated').textContent=oddsReceivedAt?new Date(oddsReceivedAt).toLocaleTimeString('cs-CZ',
   {hour:'2-digit',minute:'2-digit'}):'–';
  $('odds-status').textContent=oddsError||(fresh?
-  'Nabídka Tipsportu automaticky načtena · jen ověřená utkání ze tří soutěží.' :
-  total?'Poslední data jsou starší než 14 hodin. Znovu načti kurzy, staré ceny nevyužívám.':
+  'Načtená nabídka Tipsportu · propojuji jen shodná utkání se spolehlivým datem a výsledkovým zdrojem.' :
+  total?'Kurzy jsou starší než 14 hodin. Stará nabídka se nepoužívá.':
   'Čekám na automatické načtení aktuálních kurzů.');
  $('odds-status').className='odds-status'+(oddsError||total&&!fresh?' error':'');
- const selection=AUTO.buildAutoTickets(matches,{stake:ticketStake,profile:ticketProfile,maxTickets:4});
  if(!fresh){
-  $('auto-results').innerHTML='<div class="no-edges">Kurzy nejsou ověřené nebo jejich platnost vypršela. Žádný tiket nevymýšlím.</div>';return;
- }
- const intro='<div class="ticket-summary">'+uniqueIds.size+' z '+total+' nabídek odpovídá ověřeným utkáním. '
-  +selection.considered+' jednotlivých tipů prošlo prvním výpočtem.</div>';
- if(!selection.selected.length){
-  $('auto-results').innerHTML=intro+'<div class="no-edges"><strong>Žádná obhajitelná kombinace.</strong><p>'
-   +'Při zvoleném režimu model nenašel tiket s dostatečným konzervativním odhadem. Vyšší kurz sám o sobě neznamená výhodu. '
-   +'Nabídky bez potvrzeného zápasu nebo spolehlivých pravděpodobností jsou záměrně vyřazené.</p></div>';
+  $('auto-results').innerHTML='<div class="no-edges">Aktuální kurzy nejsou dostupné. Nelze sestavit ověřený tiket ani test nanečisto.</div>';
   return;
  }
- $('auto-results').innerHTML=intro+selection.selected.map((ticket,index)=>{
-  const pc=Math.max(0,Math.min(100,ticket.lowerBound*100));
-  const risk=Math.max(0,Math.min(100,Math.round(100-ticket.p*100)));
-  return '<article class="auto-ticket"><div class="ticket-head"><span>Varianta '+(index+1)+
-   ' · '+ticket.legs.length+' zápasy</span><span class="ticket-odds">'+ticket.odds.toFixed(2)+'×</span></div>'+
+ const selection=AUTO.buildAutoTickets(matched,{
+  stake:ticketStake,profile:ticketProfile,maxTickets:4,now:Date.now()
+ });
+ const introduction='<div class="ticket-summary">'+ids.size+' z '+total+
+  ' kurzových nabídek odpovídá ověřeným utkáním · '+selection.considered+
+  ' jednotlivých možností prošlo modelem.</div>';
+ const diagnostics=matchingDiagnostics(bookmakerOffers,matched,candidates);
+ const details='<details class="match-diagnostics"><summary>Proč nebyly použity ostatní kurzy?</summary>'+
+  '<p>'+escapeText(diagnostics)+'</p></details>';
+ let tickets=selection.selected.slice();
+ let isExperimental=false;
+ if(!tickets.length){
+  // The stricter "value" threshold is intentionally kept intact; an exploratory
+  // proposal is shown separately rather than silently re-labelled profitable.
+  const proposal=PAPER.proposePaperTicket(matched,{
+   stake:ticketStake,profile:ticketProfile,now:Date.now()
+  });
+  if(proposal){
+   tickets=[proposal];
+   isExperimental=true;
+  }
+ }
+ if(!tickets.length){
+  const needed=ticketProfile==='longshot'?3:2;
+  const specific=ids.size<needed?
+   'Režim '+(ticketProfile==='longshot'?'Vyšší kurz':'dvouzápasový tiket')+
+   ' vyžaduje '+needed+' různá ověřená utkání. Nalezeno: '+ids.size+'. ':
+   ticketProfile==='draws'?
+   'Mezi ověřenými zápasy nelze sestavit kombinaci obsahující remízu s platnými kurzy. ':
+   'Z dostupných utkání se nepodařilo sestavit ani bezpečně doložený experimentální test. ';
+  $('auto-results').innerHTML=introduction+
+   '<div class="no-edges"><strong>Vhodná kombinace zatím není dostupná.</strong><p>'+
+   escapeText(specific)+
+   'Nepoužívám smyšlené zápasy ani neplatné kurzy. Zkus jiný režim nebo obnov nabídku.</p></div>'+details;
+  return;
+ }
+ const heading=isExperimental?
+  '<div class="experimental-banner"><strong>Testovací tiket nanečisto</strong>'+
+  '<p>Žádná kombinace neprošla přísným testem výhodnosti. Níže je pouze experimentální návrh z reálných kurzů, abychom mohli měřit skutečnou úspěšnost. Není určený jako doporučení k sázení za peníze.</p></div>':
+  '<div class="ticket-summary"><strong>Modelové návrhy</strong> · teoretická hodnota není potvrzení dlouhodobého zisku.</div>';
+ const cards=tickets.map((ticket,index)=>{
+  const probability=Number(ticket.p),certainty=Math.max(0,Math.min(100,probability*100));
+  const lowerProbability=Math.max(0,Math.min(100,Number(ticket.lowerBound)*100));
+  const modelEV=Number(ticket.conservativeEV);
+  const chance=Number.isFinite(probability)?pct(probability):'neznámá';
+  const experimental=isExperimental||ticket.experimental===true;
+  return '<article class="auto-ticket'+(experimental?' auto-ticket-experimental':'')+'">'+
+   '<div class="ticket-head"><span>'+(experimental?'POUZE SIMULACE':'Varianta '+(index+1))+
+   ' · '+ticket.legs.length+' zápasy</span><span class="ticket-odds">'+
+    Number(ticket.odds).toFixed(2)+'×</span></div>'+
    ticket.legs.map(l=>'<div class="leg-row"><div class="leg-names"><strong>'+
     escapeText(l.home)+' – '+escapeText(l.away)+'</strong><small>'+
-    escapeText(LEAGUES[l.league]?.title||l.league)+' · '+new Date(l.kickoff)
-      .toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
+    escapeText(LEAGUES[l.league]?.title||l.league)+' · '+
+    new Date(l.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
     '</small></div><span class="leg-pick">'+escapeText(l.pick)+'</span>'+
     '<span class="leg-odds">'+Number(l.odds).toFixed(2)+'</span></div>').join('')+
-   '<div class="ticket-prob-row"><span>Odhad úspěchu celé kombinace</span><strong>'+pct(ticket.p)+'</strong></div>'+
-   '<div class="prob-track"><div style="width:'+pc.toFixed(2)+'%"></div></div>'+
-   '<div class="ticket-financial"><div><small>Ukázkový vklad</small><strong>'+ticket.stake+' Kč</strong></div>'+
-   '<div><small>Možná celková výplata</small><strong>'+ticket.payout.toFixed(0)+' Kč</strong></div></div>'+
-   '<p class="ticket-caveat">Konzervativní modelová hodnota: '+
-    (ticket.conservativeEV>=0?'+':'')+pct(ticket.conservativeEV)+'. '+
-    'Odhad není záruka ani prokázaný zisk; všechna utkání musejí vyjít.</p>'+
-   (ticket.unverified?'<p class="error">Pozor: některé modely nemají nezávisle ověřenou kalibraci.</p>':'')+
+   '<div class="ticket-prob-row"><span>Odhad šance celé kombinace</span><strong>'+
+    chance+'</strong></div><div class="prob-track"><div style="width:'+certainty.toFixed(1)+'%"></div></div>'+
+   '<div class="ticket-financial"><div><small>Modelový vklad</small><strong>'+
+    ticket.stake+' Kč</strong></div><div><small>Výplata, pokud vyjdou všechny tipy</small><strong>'+
+    Number(ticket.payout).toFixed(0)+' Kč</strong></div></div>'+
+   '<p class="ticket-caveat">Odhadovaná konzervativní šance nejméně '+
+    pct(Number(ticket.lowerBound))+'; teoretické EV '+
+    (modelEV>=0?'+':'')+pct(modelEV)+'. Výpočet pracuje s nejistými odhady, nikoliv se zárukou výdělku.</p>'+
+   (experimental?'<p class="experimental-warning">Tento tiket neprošel filtrem matematické výhodnosti. Je vhodný pouze pro sledování výsledků nanečisto.</p>':'')+
+   '<button class="ticket-paper-action" type="button" data-paper-action="save">Uložit tento tiket nanečisto</button>'+
    '</article>';
  }).join('');
+ $('auto-results').innerHTML=introduction+heading+cards+details;
+ for(const action of $('auto-results').querySelectorAll('[data-paper-action="save"]')){
+  action.addEventListener('click',createPaperFromLive);
+ }
 }
+function matchingDiagnostics(offers,matched,candidates){
+ const used=new Set(matched.map(x=>x.offer.id+'|'+x.offer.league+'|'+x.offer.kickoff));
+ const scope=['pl','cz','hockey'];
+ const lines=scope.map(league=>{
+  const offered=offers.filter(x=>x.league===league);
+  if(!offered.length)return null;
+  const candidateCount=candidates.filter(x=>x.league===league).length;
+  const paired=matched.filter(x=>x.offer.league===league).length;
+  const label=LEAGUES[league]?.title||league;
+  return label+': '+paired+'/'+offered.length+' spárováno ('+candidateCount+
+   ' budoucích zápasů z výsledkového zdroje)';
+ }).filter(Boolean);
+ return lines.join(' · ')+'. Nespárované nabídky mohou mít jiný název klubu, nesouhlasící datum/čas, chybějící program nebo neověřená data. Takové zápasy bez potvrzení nesimuluji.';
+}
+
 function loadAutomaticOdds(refresh=true){
  if(refresh){oddsError='';$('odds-status').textContent='Procházím veřejnou denní nabídku Tipsportu…';}
  if(globalThis.AndroidPredictor?.loadOdds){
