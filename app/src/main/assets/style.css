@@ -76,3 +76,8 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .historical-content th,.historical-content td{padding:10px 5px;text-align:center;border-bottom:1px solid #35576b}
 .historical-content th:first-child{text-align:left}
 .historical-content tr:nth-child(even){background:#20394d}
+
+.factor-list{border-top:1px solid #36546a;margin-top:10px;padding-top:7px;color:#c1d9e4}
+.factor-list summary{min-height:36px;display:flex;align-items:center;font-size:12px;font-weight:750;cursor:pointer;color:#85e6c7}
+.factor-list ul{margin:5px 0 4px;padding-left:18px}
+.factor-list li{font-size:11px;line-height:1.52;margin:7px 0;overflow-wrap:anywhere}
