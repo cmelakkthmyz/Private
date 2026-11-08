@@ -658,6 +658,7 @@ function setTicketProfile(name){
 }
 function setTicketStake(value){
  ticketStake=value;
+ if($('model-ticket-stake'))$('model-ticket-stake').value=String(value);
  for(const k of [10,20,50])$('stake-'+k).setAttribute('aria-pressed',String(k===value));
  renderModelTickets();renderOdds();
 }
@@ -896,6 +897,7 @@ $('model-ticket-refresh').addEventListener('click',()=>{renderModelTickets();
 });
 $('model-ticket-type').addEventListener('change',()=>{modelTicketType=$('model-ticket-type').value;renderModelTickets();});
 $('model-ticket-count').addEventListener('change',()=>{modelTicketMax=Number($('model-ticket-count').value)||3;renderModelTickets();});
+$('model-ticket-stake').addEventListener('change',()=>setTicketStake(Number($('model-ticket-stake').value)||20));
 $('odds-provider').value=oddsProvider;
 $('odds-provider').addEventListener('change',()=>changeOddsProvider($('odds-provider').value));
 $('save-chance-key').addEventListener('click',saveChanceApiKey);
