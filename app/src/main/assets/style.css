@@ -137,3 +137,27 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .match-diagnostics summary{cursor:pointer;color:#a9e7d7;min-height:30px;
  display:flex;align-items:center;font-weight:700}
 .match-diagnostics p{margin:5px 0}
+
+
+/* Explicit, secure bookmaker source selection: no fake Chance odds. */
+.odds-provider-settings{border:1px solid #466c7b;background:#102a3b;border-radius:13px;
+ padding:12px;margin:12px 0 14px}
+.odds-provider-settings>label{display:block;color:#cae2ec;font-size:12px;margin-bottom:8px}
+.odds-provider-settings select{display:block;appearance:auto;width:100%;min-height:46px;
+ border-radius:9px;background:#234055;color:#e8fff6;border:1px solid #648997;
+ font-size:13px;padding:8px}
+.chance-api-settings{margin-top:11px;border-top:1px solid #406073;padding-top:8px}
+.chance-api-settings summary{cursor:pointer;color:#92efd5;font-size:12px;font-weight:700;
+ min-height:38px;display:flex;align-items:center}
+.chance-api-settings p{color:#c2d6df;font-size:12px;line-height:1.5;margin:10px 0}
+.chance-api-settings label{font-size:12px;color:#deebf1;display:block;margin:10px 0 7px}
+.chance-api-settings input{width:100%;box-sizing:border-box;padding:12px;min-height:47px;
+ background:#102535;border:1px solid #567487;border-radius:9px;
+ color:#e9f7f8;font-size:14px}
+.chance-key-buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.chance-key-buttons button{min-height:43px;font-size:12px;padding:9px;
+ border-radius:9px}
+.chance-key-buttons button:first-child{background:#77dfc1;color:#0a2f25}
+.chance-key-buttons button:last-child{background:#3d5765;color:#fff}
+.chance-api-settings a{color:#9bf5da}
+#chance-key-status{color:#e9cba1;font-size:11px}
