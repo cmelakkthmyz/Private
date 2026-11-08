@@ -12,6 +12,7 @@ const makeDom=()=>{
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
+  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
   'profile-balanced','profile-longshot','profile-draws',
   'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
   'paper-pending','paper-completed','paper-profit','paper-status',
@@ -366,4 +367,35 @@ test('Tipsport API uses different provider and does not mix with morning snapsho
  assert.ok(t.saved.get('auto-odds-v2:tipsport-api'));
  t.ctx.receiveOdds(JSON.stringify({bookmaker:'Tipsport',offers:[offer],fetchedAt:new Date().toISOString()}),'tipsport');
  assert.equal(t.controls['odds-total'].textContent,'1');
+});
+
+test('model-first planner shows forecast probabilities and ticket draft without prices',()=>{
+ const t=makeDom();
+ const d=t.upcoming;
+ const a=event('Arsenal','Liverpool',d);
+ const b={...event('Chelsea','Fulham',new Date(Date.parse(d)+3600000).toISOString()),id:'second'};
+ const c={...event('Everton','Leeds United',new Date(Date.parse(d)+7200000).toISOString()),id:'third'};
+ t.ctx.receiveMatches(JSON.stringify({events:[a,b,c]}),'pl');
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('3 budoucích zápasů'));
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('SOLO'),html);
+ assert.ok(html.includes('AKO'),html);
+ assert.ok(html.includes('KOMBI'),html);
+ assert.ok(html.includes('MAXIKOMBI'),html);
+ assert.ok(html.includes('Bez ověřených kurzů'),html);
+ assert.ok(html.includes('1 ')&&html.includes('X ')&&html.includes('2 '),html);
+});
+test('switching to MAXIKOMBI shows all rows while still requiring no odds API',()=>{
+ const t=makeDom(),date=t.upcoming;
+ const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((names,i)=>{
+  const [h,a]=names.split('|');
+  return {...event(h,a,new Date(Date.parse(date)+i*3600000).toISOString()),id:'test'+i};
+ });
+ t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.controls['model-ticket-type'].value='maxikombi';
+ t.controls['model-ticket-type'].listeners.change();
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('MAXIKOMBI 3'),html);
+ assert.ok(html.includes('4 řádků'),html);
+ assert.ok(html.includes('A + B')&&html.includes('A + C')&&html.includes('B + C'),html);
 });
