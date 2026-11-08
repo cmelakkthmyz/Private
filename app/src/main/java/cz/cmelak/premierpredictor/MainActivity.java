@@ -206,13 +206,13 @@ public final class MainActivity extends Activity {
                 try {
                     payload=downloadPartnerOdds("Tipsport").toString();
                 } catch(Exception e) {
-                    payload="{\\"error\\":"+JSONObject.quote("Kurzy Tipsport API: "+
+                    payload="{\"error\":"+JSONObject.quote("Kurzy Tipsport API: "+
                         (e.getMessage()==null?"nedostupné":e.getMessage()))+"}";
                 }
                 final String result=payload;
                 runOnUiThread(() -> {
                     if(webView!=null)webView.evaluateJavascript(
-                        "window.receiveOdds("+JSONObject.quote(result)+",\\"tipsport-api\\");",null);
+                        "window.receiveOdds("+JSONObject.quote(result)+",\"tipsport-api\");",null);
                 });
             });
         }
