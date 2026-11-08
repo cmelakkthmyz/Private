@@ -51,3 +51,18 @@ for(const suffix of urls){
    body:values.length?null:text.slice(0,480)}));
  }catch(e){console.log('DENIK_CANDIDATE_ERROR',suffix,String(e).slice(0,110))}
 }
+
+for(const suffix of ['competitions?year=2026&limit=1000',
+ 'competitions/types/1-liga?year=2026','competitions/types/1-liga?year=2026&limit=100',
+ 'competitions/grades/celostatni-ligy?year=2026&limit=100']){
+ try{
+  const r=await fetch(root+suffix,{signal:AbortSignal.timeout(11000)});
+  const j=await r.json();
+  const list=Array.isArray(j.results)?j.results:Array.isArray(j)?j:Array.isArray(j.data)?j.data:[];
+  const top=list.filter(x=>(x.type?.id===11||/chance liga|fortuna liga|gambrinus liga|synot liga/i.test(x.name||''))&&
+   x.category?.type==='A');
+  console.log('DENIK_CURRENT_TOP',JSON.stringify({suffix,status:r.status,total:j.total,
+   listCount:list.length,top:top.slice(-30).map(x=>({id:x.id,slug:x.slug,name:x.name,
+    year:x.competitionYear?.year,type:x.type?.name}))}));
+ }catch(e){console.log('DENIK_CURRENT_TOP_ERROR',suffix,String(e).slice(0,130))}
+}
