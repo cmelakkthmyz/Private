@@ -18,7 +18,7 @@ function scoreForSelectedPick(xgHome,xgAway,pick){
   return score;
 }
 
-const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,TICKET=globalThis.TicketCalculator;
+const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
 const HOCKEY=['Bílí Tygři Liberec','Dynamo Pardubice','HC Energie Karlovy Vary','HC Kometa Brno',
  'HC Motor České Budějovice','HC Olomouc','HC Oceláři Třinec','HC Sparta Praha',
@@ -47,6 +47,8 @@ const ALIASES={
 };
 let current='pl',sessionMatches=[],sessionTeams=[],lastPayload=null,lastUpdated=null;
 let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
+let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
+const candidatesByLeague={pl:[],cz:[],hockey:[]};
 const canonical=name=>ALIASES[name]||String(name||'').replace(/ FC$/,'').trim();
 const storeKey=league=>'premier-intelligence-online-v1:'+LEAGUES[league].namespace;
 function readState(){
@@ -158,52 +160,101 @@ function futureForecast(match,all,state){
 }
 
 
-function renderTicketForm(){
- const count=Number($('ticket-count').value||2);
- const box=$('ticket-legs');
- if(ticketCandidates.length<2){
-  box.innerHTML='<p class="meta">V této soutěži zatím nejsou aspoň dvě naplánovaná utkání s vypočtenou předpovědí.</p>';
-  $('ticket-result').textContent='';return;
+function renderOdds(){
+ const total=bookmakerOffers.length;
+ const fresh=oddsReceivedAt&&Date.now()-Date.parse(oddsReceivedAt)<14*3600000;
+ const candidates=Object.values(candidatesByLeague).flat();
+ const matches=fresh?bookmakerOffers.map(offer=>AUTO.matchOffer(offer,candidates))
+  .filter(Boolean):[];
+ const uniqueIds=new Set(matches.map(x=>x.fixture.id));
+ $('odds-total').textContent=String(total);
+ $('odds-matched').textContent=String(uniqueIds.size);
+ $('odds-updated').textContent=oddsReceivedAt?new Date(oddsReceivedAt).toLocaleTimeString('cs-CZ',
+  {hour:'2-digit',minute:'2-digit'}):'–';
+ $('odds-status').textContent=oddsError||(fresh?
+  'Nabídka Tipsportu automaticky načtena · jen ověřená utkání ze tří soutěží.' :
+  total?'Poslední data jsou starší než 14 hodin. Znovu načti kurzy, staré ceny nevyužívám.':
+  'Čekám na automatické načtení aktuálních kurzů.');
+ $('odds-status').className='odds-status'+(oddsError||total&&!fresh?' error':'');
+ const selection=AUTO.buildAutoTickets(matches,{stake:ticketStake,profile:ticketProfile,maxTickets:4});
+ if(!fresh){
+  $('auto-results').innerHTML='<div class="no-edges">Kurzy nejsou ověřené nebo jejich platnost vypršela. Žádný tiket nevymýšlím.</div>';return;
  }
- const sorted=[...ticketCandidates].sort((a,b)=>
-   b.probabilities[b.pick]-a.probabilities[a.pick]);
- box.innerHTML=Array.from({length:count},(_,i)=>{
-  const options=sorted.map((x,j)=>'<option value="'+escapeText(x.id)+'"'+(j===i?' selected':'')+'>'+
-    escapeText(x.home+' – '+x.away)+'</option>').join('');
-  const predicted=sorted[Math.min(i,sorted.length-1)].pick;
-  const picks=['1','X','2'].map(p=>'<option value="'+p+'"'+(p===predicted?' selected':'')+'>'+p+'</option>').join('');
-  return '<div class="ticket-leg"><label>Utkání '+(i+1)+'<select id="ticket-match-'+i+'">'+options+'</select></label>'+
-    '<label>Tip<select id="ticket-pick-'+i+'">'+picks+'</select></label>'+
-    '<label>Aktuální kurz<input type="text" inputmode="decimal" id="ticket-odds-'+i+'" placeholder="např. 1,85"></label></div>';
+ const intro='<div class="ticket-summary">'+uniqueIds.size+' z '+total+' nabídek odpovídá ověřeným utkáním. '
+  +selection.considered+' jednotlivých tipů prošlo prvním výpočtem.</div>';
+ if(!selection.selected.length){
+  $('auto-results').innerHTML=intro+'<div class="no-edges"><strong>Žádná obhajitelná kombinace.</strong><p>'
+   +'Při zvoleném režimu model nenašel tiket s dostatečným konzervativním odhadem. Vyšší kurz sám o sobě neznamená výhodu. '
+   +'Nabídky bez potvrzeného zápasu nebo spolehlivých pravděpodobností jsou záměrně vyřazené.</p></div>';
+  return;
+ }
+ $('auto-results').innerHTML=intro+selection.selected.map((ticket,index)=>{
+  const pc=Math.max(0,Math.min(100,ticket.lowerBound*100));
+  const risk=Math.max(0,Math.min(100,Math.round(100-ticket.p*100)));
+  return '<article class="auto-ticket"><div class="ticket-head"><span>Varianta '+(index+1)+
+   ' · '+ticket.legs.length+' zápasy</span><span class="ticket-odds">'+ticket.odds.toFixed(2)+'×</span></div>'+
+   ticket.legs.map(l=>'<div class="leg-row"><div class="leg-names"><strong>'+
+    escapeText(l.home)+' – '+escapeText(l.away)+'</strong><small>'+
+    escapeText(LEAGUES[l.league]?.title||l.league)+' · '+new Date(l.kickoff)
+      .toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
+    '</small></div><span class="leg-pick">'+escapeText(l.pick)+'</span>'+
+    '<span class="leg-odds">'+Number(l.odds).toFixed(2)+'</span></div>').join('')+
+   '<div class="ticket-prob-row"><span>Odhad úspěchu celé kombinace</span><strong>'+pct(ticket.p)+'</strong></div>'+
+   '<div class="prob-track"><div style="width:'+pc.toFixed(2)+'%"></div></div>'+
+   '<div class="ticket-financial"><div><small>Ukázkový vklad</small><strong>'+ticket.stake+' Kč</strong></div>'+
+   '<div><small>Možná celková výplata</small><strong>'+ticket.payout.toFixed(0)+' Kč</strong></div></div>'+
+   '<p class="ticket-caveat">Konzervativní modelová hodnota: '+
+    (ticket.conservativeEV>=0?'+':'')+pct(ticket.conservativeEV)+'. '+
+    'Odhad není záruka ani prokázaný zisk; všechna utkání musejí vyjít.</p>'+
+   (ticket.unverified?'<p class="error">Pozor: některé modely nemají nezávisle ověřenou kalibraci.</p>':'')+
+   '</article>';
  }).join('');
- $('ticket-result').textContent='';
 }
-function evaluateTicketForm(){
- const count=Number($('ticket-count').value||2);
- const rows=[];
- for(let i=0;i<count;i++){
-  const game=$('ticket-match-'+i),pick=$('ticket-pick-'+i),odd=$('ticket-odds-'+i);
-  if(!game||!pick||!odd){$('ticket-result').textContent='Nejdřív načti zápasy.';return}
-  const match=ticketCandidates.find(x=>x.id===game.value);
-  if(!match){$('ticket-result').textContent='Pro tento zápas nejsou dostupná data.';return}
-  rows.push({matchId:match.id,home:match.home,away:match.away,pick:pick.value,
-   probability:match.probabilities[pick.value],odds:odd.value,
-   competition:LEAGUES[current].namespace});
+function loadAutomaticOdds(refresh=true){
+ if(refresh){oddsError='';$('odds-status').textContent='Procházím veřejnou denní nabídku Tipsportu…';}
+ if(globalThis.AndroidPredictor?.loadOdds){
+   globalThis.AndroidPredictor.loadOdds();
+ }else{
+   oddsError='Načítání veřejných kurzů je dostupné v instalované Android aplikaci.';
+   renderOdds();
  }
+}
+globalThis.receiveOdds=function(raw){
  try{
-  const result=TICKET.evaluateCombo(rows,$('ticket-stake').value);
-  const modelValue=result.modelEV>=0?'+':'';
-  $('ticket-result').innerHTML='<div class="ticket-result">'+
-   '<strong>'+escapeText($('ticket-bookmaker').value)+' · pouze výpočet</strong>'+
-   '<p>Odhad šance celého tiketu: <strong>'+pct(result.combinedProbability)+'</strong></p>'+
-   '<p>Součin kurzů: <strong>'+result.combinedOdds.toFixed(2)+'</strong> · Férový modelový kurz: '+result.fairCombinedOdds.toFixed(2)+'</p>'+
-   '<p>Případná výplata při správných všech tipech: '+result.potentialPayout.toFixed(0)+' Kč.</p>'+
-   '<p>Teoretická hodnota podle modelu: <strong>'+modelValue+pct(result.modelEV)+'</strong> ('+
-   (result.expectedNetValue>=0?'+':'')+result.expectedNetValue.toFixed(0)+' Kč oproti zadanému vkladu v průměru).</p>'+
-   '<p class="risk">Nejde o jistý nebo prokázaně výhodný tiket. '+result.warnings.map(escapeText).join(' ')+'</p></div>';
+  const data=JSON.parse(raw);
+  if(data.error)throw Error(data.error);
+  if(!Array.isArray(data.offers)||!data.offers.length)throw Error('Veřejný zdroj neposkytuje ověřitelné kurzy 1/X/2.');
+  bookmakerOffers=data.offers.map(AUTO.normalizeOffer).filter(Boolean);
+  if(!bookmakerOffers.length)throw Error('Žádná platná kurzová nabídka pro sledované ligy.');
+  oddsReceivedAt=data.fetchedAt||new Date().toISOString();
+  oddsError='';
+  try{localStorage.setItem('auto-odds-v1',JSON.stringify({
+   offers:bookmakerOffers,fetchedAt:oddsReceivedAt,source:data.source
+  }));}catch(e){}
  }catch(e){
-  $('ticket-result').textContent=e.message||'Kurzy nejsou vyplněné správně.';
+  oddsError=e.message||'Kurzy se nepodařilo načíst.';
+  // Cached data are shown only if demonstrably less than fourteen hours old.
+  try{
+   const prev=JSON.parse(localStorage.getItem('auto-odds-v1')||'null');
+   if(prev?.fetchedAt&&Date.now()-Date.parse(prev.fetchedAt)<14*3600000){
+    bookmakerOffers=(prev.offers||[]).map(AUTO.normalizeOffer).filter(Boolean);
+    oddsReceivedAt=prev.fetchedAt;
+    oddsError+=' · Poslední uložený snapshot. Před sázkou cenu znovu ověř.';
+   }
+  }catch(x){}
  }
+ renderOdds();
+};
+function setTicketProfile(name){
+ if(!['balanced','longshot','draws'].includes(name))return;
+ ticketProfile=name;
+ for(const k of ['balanced','longshot','draws'])$('profile-'+k).setAttribute('aria-pressed',String(k===name));
+ renderOdds();
+}
+function setTicketStake(value){
+ ticketStake=value;
+ for(const k of [10,20,50])$('stake-'+k).setAttribute('aria-pressed',String(k===value));
+ renderOdds();
 }
 
 function renderSchedule(events,receivedAt,cache=false){
@@ -219,12 +270,14 @@ function renderSchedule(events,receivedAt,cache=false){
   try{
    const forecast=futureForecast(m,parsed,state);
    ticketCandidates.push({id:m.id,home:m.home_team_name,away:m.away_team_name,
+    league:current,kickoff:m.kickoff,status:'scheduled',modelVerified:true,
     pick:forecast.pick,probabilities:forecast.probabilities});
    return scoreCard(m.home_team_name,m.away_team_name,forecast,
     new Date(m.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
   }catch(e){return '<div class="match error">Předpověď není dostupná pro '+escapeText(m.home_team_name)+' – '+escapeText(m.away_team_name)+'</div>'}
  }).join('')||'<div class="match">Žádné další zápasy ve vráceném programu.</div>';
- renderTicketForm();
+ candidatesByLeague[current]=ticketCandidates.slice();
+ renderOdds();
  status((cache?'Uložený rozpis':'ESPN rozpis')+' · '+incoming.length+' dalších zápasů · '+(changes?changes+' tipů vyhodnoceno · ':'')+
  'Aktualizace '+new Date(receivedAt).toLocaleString('cs-CZ'));
  renderCoverage(state);
@@ -251,12 +304,15 @@ function renderHockey(raw,fromCache=false){
    status:'scheduled',competition:'cz-hockey'};
   try{
    const forecast=futureForecast(fixture,[],state);
-   ticketCandidates.push({id:fixture.id,home,away,pick:forecast.pick,probabilities:forecast.probabilities});
+   ticketCandidates.push({id:fixture.id,home,away,
+    league:'hockey',kickoff:fixture.kickoff,status:'scheduled',modelVerified:false,
+    pick:forecast.pick,probabilities:forecast.probabilities});
    return scoreCard(home,away,forecast,new Date(e.date).toLocaleString('cs-CZ',
     {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
   }catch(err){return '<article class="match error">Nelze spočítat zápas '+escapeText(home)+' – '+escapeText(away)+'</article>';}
  }).join('')||'<article class="match">Pro dnešní den nejsou k dispozici další ověřené zápasy extraligy. Ruční simulace z ligové tabulky funguje.</article>';
- renderTicketForm();
+ candidatesByLeague.hockey=ticketCandidates.slice();
+ renderOdds();
  const age=raw.updated&&Number.isFinite(Date.parse(raw.updated))?Math.round((Date.now()-Date.parse(raw.updated))/3600000):null;
  status('Česká extraliga: '+future.length+' dnešních utkání · tabulka '+escapeText(raw.updated||'bez data')+
   (age!==null&&age>48?' · Pozor: starší než 48 hodin':'')+
@@ -333,7 +389,7 @@ function changeLeague(id){
  if(id==='hockey'&&!hockeyStandings){
   try{const raw=JSON.parse(localStorage.getItem('hockey-cache-v1')||'null');if(raw?.standings){hockeyStandings=raw.standings;hockeyUpdated=raw.updated;}}catch(e){}
  }
- refillSelects();renderCoverage();renderTicketForm();requestSchedule();
+ refillSelects();renderCoverage();renderOdds();requestSchedule();
 }
 for(const id of Object.keys(LEAGUES))$('league-'+id).addEventListener('click',()=>changeLeague(id));
 for(const s of ['home','away'])$(''+s+'-strength').addEventListener('input',()=>{$(s+'-power').textContent=$(s+'-strength').value});
@@ -355,7 +411,11 @@ $('calc').addEventListener('click',()=>{
  }catch(e){$('manual-result').textContent='Výpočet se nezdařil: '+e.message;}
 });
 $('refresh').addEventListener('click',requestSchedule);
-$('ticket-count').addEventListener('change',renderTicketForm);
-$('ticket-calc').addEventListener('click',evaluateTicketForm);
+for(const profile of ['balanced','longshot','draws'])
+ $('profile-'+profile).addEventListener('click',()=>setTicketProfile(profile));
+for(const stake of [10,20,50])
+ $('stake-'+stake).addEventListener('click',()=>setTicketStake(stake));
+$('scan-odds').addEventListener('click',()=>loadAutomaticOdds(true));
 changeLeague('pl');
+loadAutomaticOdds(true);
 })();
