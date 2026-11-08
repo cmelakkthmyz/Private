@@ -199,6 +199,24 @@ public final class MainActivity extends Activity {
             });
         }
 
+        // Same encrypted PulseScore key can read both independent bookmaker boards.
+        @JavascriptInterface public void loadTipsportApiOdds() {
+            executor.execute(() -> {
+                String payload;
+                try {
+                    payload=downloadPartnerOdds("Tipsport").toString();
+                } catch(Exception e) {
+                    payload="{\\"error\\":"+JSONObject.quote("Kurzy Tipsport API: "+
+                        (e.getMessage()==null?"nedostupné":e.getMessage()))+"}";
+                }
+                final String result=payload;
+                runOnUiThread(() -> {
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveOdds("+JSONObject.quote(result)+",\\"tipsport-api\\");",null);
+                });
+            });
+        }
+
         @JavascriptInterface public void loadOdds() {
             executor.execute(() -> {
                 String payload;
@@ -488,6 +506,12 @@ public final class MainActivity extends Activity {
     // Read-only Chance pre-match board from documented independent API.
     // No bookmaker account is accessed, and no bets are placed.
     private JSONObject downloadChanceOdds() throws Exception {
+        return downloadPartnerOdds("Chance");
+    }
+    private JSONObject downloadPartnerOdds(String bookmaker) throws Exception {
+        if(!"Chance".equals(bookmaker)&&!"Tipsport".equals(bookmaker))
+            throw new IllegalArgumentException("Neplatný zdroj kurzů");
+        String apiBase="Chance".equals(bookmaker)?ChanceOddsFeed.API:ChanceOddsFeed.TIPSPORT_API;
         String key=ChanceKeyStore.load(this);
         if(key==null||key.trim().isEmpty())
             throw new IllegalStateException("Chybí API klíč PulseScore. Bez klíče nelze ověřit kurzy Chance.");
@@ -496,7 +520,7 @@ public final class MainActivity extends Activity {
         for(int index=0;index<types.length;index++){
             JSONArray destination=index==0?soccer:hockey;
             for(int page=1;page<=4;page++){
-                String url=ChanceOddsFeed.API+types[index]+"/events?page="+page+"&limit=30";
+                String url=apiBase+types[index]+"/events?page="+page+"&limit=30";
                 String response=readChancePage(url,key);
                 JSONObject json=new JSONObject(response);
                 if(json.optJSONArray("events")==null)
@@ -506,11 +530,11 @@ public final class MainActivity extends Activity {
                    json.getJSONArray("events").length()==0)break;
             }
         }
-        JSONObject parsed=ChanceOddsFeed.parse(soccer,hockey,System.currentTimeMillis());
+        JSONObject parsed=ChanceOddsFeed.parse(soccer,hockey,System.currentTimeMillis(),bookmaker);
         if(parsed.getJSONArray("offers").length()==0) {
             // Valid empty results must never be replaced with prices from
             // unrelated market, period, or another sportsbook.
-            parsed.put("note","Chance API funguje, ale v načtených stránkách dnes nejsou "
+            parsed.put("note",bookmaker+" API funguje, ale v načtených stránkách dnes nejsou "
                 +"ověřené předzápasové kurzy 1/X/2 pro sledované soutěže.");
         }
         return parsed;
