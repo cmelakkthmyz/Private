@@ -3,7 +3,7 @@ on:
   push:
     branches: [premier-league-android, premier-league-model-v2]
   pull_request:
-    branches: [main]
+    branches: [main, premier-league-android]
   workflow_dispatch:
 jobs:
   build:
