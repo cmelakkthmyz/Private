@@ -27,7 +27,7 @@ const makeDom=()=>{
   console,URL,Intl,Date,Math,JSON,Array,Object,Number,String,Error,Boolean,Map,Set,Float64Array,
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
-  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');}},
+  AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');}},
  };
  ctx.globalThis=ctx;ctx.window=ctx;
  const scope=vm.createContext(ctx);
@@ -147,4 +147,48 @@ test('no ticket is produced from stale bookmaker snapshot',()=>{
   id:'a',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:t.upcoming,odds:{'1':2,X:3,'2':4}
  }],fetchedAt:new Date(Date.now()-20*3600000).toISOString()}));
  assert.ok(t.controls['auto-results'].innerHTML.includes('platnost vypršela'));
+});
+
+test('FPL live squad statuses and 21-year CC0 archive are visible only with valid as-of snapshot',()=>{
+ const t=makeDom();
+ const teams=Array.from({length:20},(_,i)=>({id:'Club'+i,name:'Club'+i,attack:70+i*.2,defense:70-i*.2}));
+ const players=Array.from({length:220},(_,i)=>({name:'Player '+i,team_id:'Club'+i%20,
+  minutes:400,xg:.9,xa:.2,availability:i===0?'i':'a',chance_of_playing_next_round:i===0?0:100}));
+ const context={teams,players,fetchedAt:new Date().toISOString(),source:'Fantasy Premier League public API'};
+ t.ctx.receiveMatches(JSON.stringify({context,events:[event('Arsenal','Chelsea',t.upcoming)]}),'pl');
+ assert.ok(t.controls.coverage.textContent.includes('FPL'));
+ assert.ok(t.controls.coverage.textContent.includes('OpenFootball'));
+ assert.ok(t.calls.includes('all'));
+});
+test('all three sport candidate snapshots are considered even when Premier League tab is selected',()=>{
+ const t=makeDom();
+ const d=new Date(Date.now()+6*3600000).toISOString();
+ const other=(id,h,a,time)=>({...event(h,a,time),id});
+ const leagues={
+  pl:{events:[event('Arsenal','Liverpool',d),other('22','Chelsea','Fulham',new Date(Date.parse(d)+3600000).toISOString())]},
+  cz:{events:[event('Sparta Praha','Slavia Praha',d),other('23','Viktoria Plzeň','Baník Ostrava',new Date(Date.parse(d)+3600000).toISOString())]},
+  hockey:{sport:'hockey',updated:new Date().toISOString(),scheduleCurrent:true,standings:rows(),events:[
+    {id:'h1',home:'Třinec',away:'Olomouc',date:d},
+    {id:'h2',home:'Pardubice',away:'Kometa Brno',date:new Date(Date.parse(d)+3600000).toISOString()}
+  ]}
+ };
+ t.ctx.receiveAllLeagues(JSON.stringify(leagues));
+ const offers=[
+  {id:'o1',league:'pl',home:'Arsenal',away:'Liverpool',kickoff:d,odds:{'1':3,X:3.2,'2':3.5}},
+  {id:'o2',league:'cz',home:'Sparta Praha',away:'Slavia Praha',kickoff:d,odds:{'1':3,X:3.2,'2':3.5}},
+  {id:'o3',league:'hockey',home:'Třinec',away:'Olomouc',kickoff:d,odds:{'1':3,X:3.2,'2':3.5}}
+ ];
+ t.ctx.receiveOdds(JSON.stringify({offers,fetchedAt:new Date().toISOString()}));
+ assert.equal(t.controls['odds-total'].textContent,'3');
+ assert.equal(t.controls['odds-matched'].textContent,'3');
+ assert.equal(t.controls['league-pl'].attributes['aria-pressed'],'true');
+});
+test('offline/stale FPL snapshot is never used to claim current injuries',()=>{
+ const t=makeDom();
+ const old=new Date(Date.now()-5*86400000).toISOString();
+ const bad={teams:Array.from({length:20},(_,i)=>({id:'Arsenal'+i,attack:90,defense:80})),
+  players:Array.from({length:210},(_,i)=>({team_id:'Arsenal',name:'i'+i,availability:'i'})),
+  fetchedAt:old,source:'FPL'};
+ t.ctx.receiveMatches(JSON.stringify({context:bad,events:[event('Arsenal','Liverpool',t.upcoming)]}),'pl');
+ assert.ok(t.controls.coverage.textContent.includes('nejsou ověřené'));
 });
