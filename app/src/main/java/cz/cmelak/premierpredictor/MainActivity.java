@@ -1,6 +1,9 @@
 package cz.cmelak.premierpredictor;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.webkit.WebResourceRequest;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
@@ -47,7 +50,22 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        webView.setWebViewClient(new WebViewClient());
+        // Only bundled local UI owns the native JS bridge. External links
+        // (including PulseScore signup) open in the phone's default browser.
+        webView.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){
+                Uri uri=request.getUrl();
+                if("file".equals(uri.getScheme()))return false;
+                try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(Exception ignored){}
+                return true;
+            }
+            @Override public boolean shouldOverrideUrlLoading(WebView view,String url){
+                Uri uri=Uri.parse(url);
+                if("file".equals(uri.getScheme()))return false;
+                try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(Exception ignored){}
+                return true;
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new Bridge(), "AndroidPredictor");
         setContentView(webView);
