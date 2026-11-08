@@ -81,3 +81,41 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .factor-list summary{min-height:36px;display:flex;align-items:center;font-size:12px;font-weight:750;cursor:pointer;color:#85e6c7}
 .factor-list ul{margin:5px 0 4px;padding-left:18px}
 .factor-list li{font-size:11px;line-height:1.52;margin:7px 0;overflow-wrap:anywhere}
+
+
+/* Clear, tactile paper-ticket mode and historical no-money outcome journal */
+.paper-lab{margin-top:17px;background:linear-gradient(165deg,#1e4050,#0e263b);
+ border:1px solid #4f8790;border-radius:20px;padding:19px 15px;box-shadow:0 12px 30px #04162466}
+.paper-lab h2{font-size:23px;line-height:1.25;margin:9px 0}
+.paper-lab>p{font-size:13px;line-height:1.5;color:#c0d5df;margin:0 0 13px}
+.paper-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:16px 0 11px}
+.paper-overview>div{border-radius:12px;border:1px solid #3b697b;background:#173447;padding:12px 5px;text-align:center}
+.paper-overview span{display:block;font-size:10px;color:#accedb;line-height:1.35}
+.paper-overview strong{display:block;font-size:20px;color:#e7fffb;margin-top:5px;word-break:break-word}
+.paper-overview strong.paper-negative{color:#ffa6a6}
+.paper-overview strong.paper-positive{color:#80e6c1}
+.paper-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}
+.paper-actions button{border-radius:11px;min-height:53px;line-height:1.25;font-size:12px;padding:9px 11px}
+.paper-actions button:first-child{background:#86edc9;color:#0a3025}
+.paper-actions button:last-child{background:#2a5267;color:#edfaff;border:1px solid #57879d}
+.paper-actions button:disabled{background:#38515c;color:#92a7ab;opacity:.65}
+.paper-ticket{border:1px solid #3e6979;border-radius:14px;background:#102a3d;margin:13px 0;padding:13px}
+.paper-ticket.paper-win{border-color:#3d9679}
+.paper-ticket.paper-loss{border-color:#885564}
+.paper-ticket-top{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.paper-ticket-top strong{color:#e5fff5;font-size:15px}
+.paper-ticket-top span{color:#9fbdca;font-size:11px}
+.paper-ticket-meta{color:#b6ccd7;font-size:11px;margin-top:7px;line-height:1.5}
+.paper-ticket-leg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;
+ align-items:center;border-top:1px solid #325364;padding:10px 0;color:#d2e7ec;font-size:12px}
+.paper-ticket-leg>span{overflow-wrap:anywhere}
+.paper-ticket-leg>strong{font-size:12px;color:#90ead0}
+.paper-ticket-leg>small{color:#b4cfdf;white-space:nowrap;font-size:11px}
+.paper-ticket-bottom{border-top:1px solid #406878;padding-top:12px;display:flex;
+ justify-content:space-between;gap:12px;font-size:12px;color:#b4ccdc}
+.paper-ticket-bottom strong{color:#f2fcff;font-size:16px}
+.paper-empty{font-size:12px;color:#bad1df;background:#142b3c;border:1px dashed #456478;
+ padding:14px;border-radius:11px;line-height:1.5}
+.quick-jump{grid-template-columns:repeat(4,minmax(0,1fr))}
+#paper-lab{scroll-margin-top:15px}
+@media(min-width:680px){.paper-lab{padding:23px}.paper-actions button{font-size:14px}}
