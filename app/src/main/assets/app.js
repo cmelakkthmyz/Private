@@ -409,6 +409,66 @@ function loadedOddsTable(){
  '</p><div style="overflow-x:auto"><table><thead><tr><th>Zápas</th><th>Začátek</th><th>1 / X / 2</th></tr></thead><tbody>'+body+'</tbody></table></div></details>';
 }
 
+function renderModelTicketJournal(){
+ const j=MODEL_JOURNAL.journalStats(modelTicketJournal);
+ $('model-journal-summary').textContent=j.saved+' uložených modelových tiketů · '+j.pending+
+ ' čeká · '+j.settled+' vyhodnoceno · '+j.withHit+' s alespoň jedním správným řádkem.'+
+ (j.netKnown?' U '+j.netKnown+' tiketů jsou známé kurzy.':' Bez kurzů se finanční výsledek neurčuje.');
+ $('model-journal-list').innerHTML=modelTicketJournal.drafts.slice(0,10).map(t=>{
+  const label=t.status==='pending'?'Čeká na výsledky':t.status==='has-hit'?
+   'Alespoň jeden správný řádek':'Žádný správný řádek';
+  return '<div class="model-journal-row"><strong>'+escapeText(t.label)+' · '+escapeText(label)+'</strong>'+
+   '<small>'+escapeText(new Date(t.createdAt).toLocaleString('cs-CZ'))+' · '+t.stake.toFixed(2)+' Kč modelově'+
+   (t.net===null?' · bez finančního vyhodnocení':' · modelový čistý výsledek: '+t.net.toFixed(2)+' Kč')+
+   '</small><div>'+t.legs.map(l=>escapeText(l.home+' – '+l.away)+' ('+escapeText(l.pick)+
+    (l.score?', '+escapeText(l.score):'')+')'+(l.status==='won'?' ✓':l.status==='lost'?' ×':' …')).join(' · ')+'</div></div>';
+ }).join('')||'<p class="source-notice">Uložené návrhy se objeví zde.</p>';
+ const a=MODEL_JOURNAL.arenaStats(modelTicketJournal);
+ $('arena-tips-summary').innerHTML='<p class="source-notice">'+a.imported+' importovaných tipů · '+a.pending+
+ ' čeká na zápas · '+a.settled+' vyhodnoceno'+(a.accuracy===null?'': ' · úspěšnost '+pct(a.accuracy))+
+ '. Úspěšnost není totéž jako zisk.</p>'+
+ (a.authors.length?'<details><summary>Autoři a jejich dosavadní výsledky</summary><div>'+
+  a.authors.map(row=>'<p>'+escapeText(row.author)+' · '+row.wins+'/'+row.settled+
+   ' správně (malý vzorek nemusí nic dokazovat)</p>').join('')+'</div></details>':'')+
+ '<p class="source-notice">'+(a.eligibleToLearn?
+ 'Vzorek je dostatečný pro další testování komunitního signálu, ale bez potvrzeného zlepšení kalibrace ho nepřidávám do predikcí.':
+ 'Pro případné učení z komunitních tipů je potřeba nejméně 30 nezávisle vyhodnocených tipů od více autorů.')+'</p>';
+}
+function generateNextModelTicket(){
+ if(!modelTicketOptions.length){$('model-ticket-action-status').textContent='Nejsou načtené budoucí zápasy. Použij Aktualizovat zápasy.';return;}
+ let index=modelTicketGenerateCount?modelTicketOptions.findIndex(t=>t.id===selectedModelTicketId):-1;
+ index=(index+1)%modelTicketOptions.length;
+ selectedModelTicketId=modelTicketOptions[index].id;
+ modelTicketGenerateCount++;
+ renderModelTickets();
+ $('model-ticket-action-status').textContent='Vygenerovaný návrh: '+modelTicketOptions[index].label+
+  ' · '+modelTicketOptions[index].legCount+' zápasů · '+modelTicketOptions[index].lineCount+
+  ' řádků. Pomocí Uložit vybraný tiket ho zaznamenáš nanečisto.';
+}
+function saveGeneratedTicket(ticket){
+ const chosen=ticket||modelTicketOptions.find(t=>t.id===selectedModelTicketId);
+ if(!chosen){$('model-ticket-action-status').textContent='Nejdřív vygeneruj tiket ze zápasů.';return;}
+ try{
+  const outcome=MODEL_JOURNAL.storeTicketDraft(modelTicketJournal,chosen);
+  if(!outcome.saved){$('model-ticket-action-status').textContent=outcome.reason;return;}
+  if(saveModelTicketJournal())
+   $('model-ticket-action-status').textContent='Tiket '+chosen.label+' uložen nanečisto. Výsledky se ověří po skončení zápasů.';
+  renderModelTicketJournal();
+  requestHockeyPaperResults();
+ }catch(e){$('model-ticket-action-status').textContent='Návrh nelze uložit: '+String(e.message||e);}
+}
+function importArenaFromText(){
+ try{
+  const outcome=MODEL_JOURNAL.importArenaPicks(modelTicketJournal,$('arena-tips-input').value);
+  if(outcome.added){saveModelTicketJournal();$('arena-tips-input').value='';}
+  $('arena-import-status').textContent='Uloženo '+outcome.added+' tipů · duplicitní '+outcome.duplicates+
+   ' · neplatné řádky '+(outcome.invalidLines.length?outcome.invalidLines.join(', '):'žádné')+
+   '. Budou ověřeny z konečných výsledků, ne podle tvrzení autora.';
+  renderModelTicketJournal();
+  if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
+  requestHockeyPaperResults();
+ }catch(e){$('arena-import-status').textContent='Import neproběhl: '+String(e.message||e);}
+}
 function renderModelTickets(){
  const el=$('model-ticket-results'),info=$('model-ticket-status');
  if(!el||!info)return;
