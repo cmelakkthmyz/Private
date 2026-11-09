@@ -420,6 +420,59 @@ function loadedOddsTable(){
  '</p><div style="overflow-x:auto"><table><thead><tr><th>Zápas</th><th>Začátek</th><th>1 / X / 2</th></tr></thead><tbody>'+body+'</tbody></table></div></details>';
 }
 
+let backgroundMonitorState=null;
+function nativeDate(raw){
+ try{return new Date(raw).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',
+  year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return '–';}
+}
+function renderBackgroundMonitor(){
+ const d=backgroundMonitorState;if(!d)return;
+ $('background-monitor-toggle').textContent=d.enabled?'Pozastavit automatiku':'Zapnout automatiku';
+ $('background-monitor-status').textContent=(d.enabled?'Automatika zapnutá':'Automatika vypnutá')+
+  ' · poslední pokus: '+(d.lastRun&&d.lastRun!=='null'?nativeDate(d.lastRun):'zatím žádný')+
+  ' · poslední úspěšná kontrola: '+(d.lastSuccess&&d.lastSuccess!=='null'?nativeDate(d.lastSuccess):'zatím žádná')+
+  ' · plánováno přibližně každých '+d.intervalHours+' hodin podle možností Androidu.';
+ $('background-monitor-metrics').innerHTML=
+  '<div><span>Čeká na výsledek</span><strong>'+Number(d.pending||0)+'</strong></div>'+
+  '<div><span>Vyhodnocené předpovědi</span><strong>'+Number(d.settled||0)+'</strong></div>'+
+  '<div><span>Úspěšnost tipu</span><strong>'+
+  (typeof d.accuracy==='number'?pct(d.accuracy):'–')+'</strong></div>';
+ const sources=d.sources||{};
+ const status=Object.keys(sources).map(k=>escapeText(k)+': '+escapeText(sources[k])).join(' · ');
+ const tickets=Array.isArray(d.dailyTickets)?d.dailyTickets.slice(-4).reverse():[];
+ $('background-monitor-tickets').innerHTML=
+  '<p class="source-notice">Zdroje: '+(status||'zatím žádná data')+'</p>'+
+  '<h3>Automaticky vytvořené modelové tikety</h3>'+
+  (tickets.length?tickets.map(t=>{
+   const legs=(t.legs||[]).map(x=>escapeText(x.home)+' – '+escapeText(x.away)+
+    ' <strong>'+escapeText(x.pick)+'</strong> ('+pct(x.probability)+')').join(' · ');
+   return '<div class="native-daily-ticket"><strong>'+escapeText(t.day)+' · '+
+    escapeText(t.type)+'</strong><small>'+legs+'</small>'+
+    '<small>'+ (t.status==='evaluated'?'Vyhodnoceno · správných řádků: '+Number(t.hitRows||0):
+     'Čeká na všechny výsledky')+'</small></div>';
+  }).join(''):'<p class="source-notice">Po prvním načtení dostatečného počtu zápasů se zde objeví návrh nanečisto.</p>');
+ const latest=Array.isArray(d.latest)?d.latest:[];
+ $('background-monitor-history').innerHTML=
+  '<p class="source-notice">Brierovo skóre (nižší je lepší): '+
+   (typeof d.brier==='number'?d.brier.toFixed(3):'zatím nevyhodnoceno')+
+  '. Úspěšnost je jen u tipů uložených před začátkem zápasu.</p>'+
+  latest.map(x=>'<div class="native-background-game"><strong>'+
+    escapeText(x.home)+' – '+escapeText(x.away)+'</strong><small>'+
+    escapeText(x.league)+' · '+nativeDate(x.kickoff)+' · model '+escapeText(x.pick)+
+    ' ('+pct(x.p?.[x.pick]??0)+') · '+
+    (x.status==='settled'?'skutečně '+escapeText(x.actual||'')+
+     ' ('+escapeText(x.score||'')+')':'čeká na výsledek')+
+  '</small></div>').join('');
+}
+globalThis.receiveBackgroundMonitorStatus=raw=>{
+ try{backgroundMonitorState=JSON.parse(raw);renderBackgroundMonitor();}
+ catch(e){$('background-monitor-status').textContent='Nelze načíst stav sledování: '+String(e.message||e);}
+};
+globalThis.refreshBackgroundMonitor=()=>{
+ if(globalThis.AndroidPredictor?.backgroundStatus)
+  globalThis.AndroidPredictor.backgroundStatus();
+ else $('background-monitor-status').textContent='Nativní automatické sledování není dostupné.';
+};
 function renderModelTicketJournal(){
  const j=MODEL_JOURNAL.journalStats(modelTicketJournal);
  $('model-journal-summary').textContent=j.saved+' uložených modelových tiketů · '+j.pending+
@@ -999,6 +1052,18 @@ $('model-ticket-refresh').addEventListener('click',()=>{
  if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
  else renderModelTickets();
 });
+$('background-monitor-toggle').addEventListener('click',()=>{
+ if(!globalThis.AndroidPredictor?.backgroundEnabled)return;
+ const enable=!(backgroundMonitorState?.enabled??true);
+ globalThis.AndroidPredictor.backgroundEnabled(enable);
+ $('background-monitor-status').textContent=enable?
+ 'Zapínám automatické plánování…':'Pozastavuji automatické plánování…';
+});
+$('background-monitor-run').addEventListener('click',()=>{
+ if(!globalThis.AndroidPredictor?.backgroundCheckNow)return;
+ globalThis.AndroidPredictor.backgroundCheckNow();
+ $('background-monitor-status').textContent='Požadavek na kontrolu odeslán plánovači Androidu. Výsledky se objeví po dokončení.';
+});
 $('model-ticket-generate').addEventListener('click',generateNextModelTicket);
 $('model-ticket-save').addEventListener('click',()=>saveGeneratedTicket());
 $('model-ticket-check').addEventListener('click',()=>{
@@ -1038,6 +1103,7 @@ try{
  if(restored)acceptLiveContext({context:restored});
 }catch(e){}
 changeLeague('pl');
+globalThis.refreshBackgroundMonitor();
 renderModelTicketJournal();
 renderPaper();
 loadAutomaticOdds(true);
@@ -1075,6 +1141,7 @@ globalThis.sportPredictorOnPause=()=>{autoForeground=false;updateAutoStatus();};
 globalThis.sportPredictorOnResume=()=>{
  autoForeground=true;
  autoScan(true);
+ globalThis.refreshBackgroundMonitor();
  updateAutoStatus();
 };
 if(typeof document.addEventListener==='function')
@@ -1082,6 +1149,9 @@ if(typeof document.addEventListener==='function')
   if(document.visibilityState==='hidden')globalThis.sportPredictorOnPause();
   else globalThis.sportPredictorOnResume();
  });
-if(typeof setInterval==='function')setInterval(()=>{autoScan();updateAutoStatus();},15_000);
+if(typeof setInterval==='function'){
+ setInterval(()=>{autoScan();updateAutoStatus();},15_000);
+ setInterval(()=>globalThis.refreshBackgroundMonitor(),300_000);
+}
 updateAutoStatus();
 })();
