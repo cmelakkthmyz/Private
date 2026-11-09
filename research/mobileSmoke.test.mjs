@@ -14,6 +14,8 @@ const makeDom=()=>{
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
   'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
   'model-ticket-stake','model-ticket-generate','model-ticket-save','model-ticket-check',
+  'background-monitor-toggle','background-monitor-run','background-monitor-status',
+  'background-monitor-metrics','background-monitor-tickets','background-monitor-history',
   'model-ticket-action-status','model-journal-summary','model-journal-list',
   'arena-tips-input','arena-tips-import','arena-import-status','arena-tips-summary',
   'profile-balanced','profile-longshot','profile-draws',
@@ -37,6 +39,8 @@ const makeDom=()=>{
   document:{getElementById(id){if(!controls[id])throw Error('Unknown DOM id '+id);return controls[id]}},
   localStorage:{setItem(k,v){saved.set(k,v);},getItem(k){return saved.get(k)||null;}},
   AndroidPredictor:{loadFixtures(league){calls.push(league);},loadOdds(){calls.push('odds');},loadAllLeagues(){calls.push('all');},loadPaperHockeyResults(dates){calls.push('hockey-result:'+dates);},
+    backgroundStatus(){calls.push('background-status');},backgroundCheckNow(){calls.push('background-check');},
+    backgroundEnabled(yes){calls.push('background-enabled:'+yes);},
    loadChanceOdds(){calls.push('chance');},
    loadTipsportApiOdds(){calls.push('tipsport-api');},
    chanceKeyStatus(){calls.push('chance-key-status');},
@@ -487,4 +491,33 @@ test('one-click generation loads fixtures automatically when nothing is cached',
  }));
  assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vygenerovaný návrh'));
  assert.ok(t.controls['model-ticket-results'].innerHTML.includes('SOLO'));
+});
+
+test('background monitor starts from native status without opening a WebView prediction page',()=>{
+ const t=makeDom();
+ assert.ok(t.calls.includes('background-status'));
+ t.ctx.receiveBackgroundMonitorStatus(JSON.stringify({
+  enabled:true,intervalHours:6,lastRun:'2026-11-09T04:00:00Z',
+  lastSuccess:'2026-11-09T04:00:00Z',pending:22,settled:18,
+  accuracy:0.56,brier:0.59,sources:{pl:'OK',cz:'OK',hockey:'OK'},
+  dailyTickets:[{day:'2026-11-09',type:'MAXIKOMBI 2/3 + 3/3',status:'simulation',
+    legs:[{home:'Arsenal',away:'Chelsea',pick:'1',probability:.58}]}],
+  latest:[{home:'Arsenal',away:'Chelsea',league:'pl',kickoff:t.upcoming,
+    p:{'1':.58,X:.25,'2':.17},pick:'1',status:'pending'}]
+ }));
+ assert.ok(t.controls['background-monitor-status'].textContent.includes('Automatika zapnutá'));
+ assert.ok(t.controls['background-monitor-metrics'].innerHTML.includes('22'));
+ assert.ok(t.controls['background-monitor-tickets'].innerHTML.includes('MAXIKOMBI'));
+ assert.ok(t.controls['background-monitor-history'].innerHTML.includes('Arsenal'));
+ t.controls['background-monitor-run'].listeners.click();
+ assert.ok(t.calls.includes('background-check'));
+ t.controls['background-monitor-toggle'].listeners.click();
+ assert.ok(t.calls.includes('background-enabled:false'));
+});
+test('returning from background refreshes native monitoring status',()=>{
+ const t=makeDom();
+ const before=t.calls.filter(x=>x==='background-status').length;
+ t.ctx.sportPredictorOnPause();
+ t.ctx.sportPredictorOnResume();
+ assert.ok(t.calls.filter(x=>x==='background-status').length>before);
 });
