@@ -474,3 +474,17 @@ test('check saved-ticket results button refreshes official league results',()=>{
  assert.ok(t.calls.filter(x=>x==='all').length>before);
  assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Ověřuji'));
 });
+
+test('one-click generation loads fixtures automatically when nothing is cached',()=>{
+ const t=makeDom();
+ const before=t.calls.filter(x=>x==='all').length;
+ t.controls['model-ticket-generate'].listeners.click();
+ assert.ok(t.calls.filter(x=>x==='all').length>before);
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Hledám'));
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:[event('Arsenal','Liverpool',t.upcoming)]},
+  cz:{error:'offline'},hockey:{error:'offline'}
+ }));
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vygenerovaný návrh'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('SOLO'));
+});
