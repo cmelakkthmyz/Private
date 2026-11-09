@@ -83,8 +83,8 @@ public final class BackgroundForecastEngine {
             boolean done=type!=null&&(type.optBoolean("completed",false)||
                     "STATUS_FINAL".equals(type.optString("name","")));
             Object hs=h.opt("score"),as=a.opt("score");
-            if(done&&hs instanceof Number&&as instanceof Number&&g.starts+90L*60000L<now){
-                int hh=((Number)hs).intValue(),aa=((Number)as).intValue();
+            if(done&&hs!=null&&as!=null&&g.starts+90L*60000L<now){
+                int hh=parseScore(hs),aa=parseScore(as);
                 if(hh>=0&&aa>=0&&hh<=35&&aa<=35){g.finished=true;g.hs=hh;g.as=aa;}
             }
             games.add(g);
@@ -108,13 +108,24 @@ public final class BackgroundForecastEngine {
         return games;
     }
 
+    private static int parseScore(Object x){
+        if(x instanceof Number)return ((Number)x).intValue();
+        if(x instanceof String&&((String)x).matches("\\d{1,2}"))
+            return Integer.parseInt((String)x);
+        return -1;
+    }
+    private static boolean teamMatches(String a,String b,String league){
+        String x=plain(a),y=plain(b);
+        if(x.equals(y))return true;
+        return "hockey".equals(league)&&(x.endsWith(" "+y)||y.endsWith(" "+x));
+    }
     private static boolean sameGame(JSONObject old,Game g){
         if(!g.league.equals(old.optString("league")))return false;
         if(g.id.equals(old.optString("id")))return true;
         long oldStart=time(old.optString("kickoff",""));
         return oldStart>0&&Math.abs(oldStart-g.starts)<9L*3600000L
-                &&plain(old.optString("home","")).equals(plain(g.home))
-                &&plain(old.optString("away","")).equals(plain(g.away));
+                &&teamMatches(old.optString("home",""),g.home,g.league)
+                &&teamMatches(old.optString("away",""),g.away,g.league);
     }
     private static long time(String s){try{return Instant.parse(s).toEpochMilli();}catch(Exception e){return 0;}}
     private static JSONObject existing(JSONArray rows,Game g){
@@ -276,7 +287,6 @@ public final class BackgroundForecastEngine {
         sources.put(league,"OK · "+all.size()+" utkání, "+created+" nových odhadů, "+settled+" výsledků");
         ledger.put("sources",sources);
         trim(ledger,now);
-        createDailyTicket(ledger,now);
         return new JSONObject().put("fixtures",all.size()).put("created",created).put("settled",settled);
     }
 
@@ -286,6 +296,9 @@ public final class BackgroundForecastEngine {
         JSONArray kept=new JSONArray();
         for(int i=Math.max(0,rows.length()-1400);i<rows.length();i++)kept.put(rows.optJSONObject(i));
         ledger.put("records",kept);
+    }
+    public static void finishCycle(JSONObject ledger,long now){
+        createDailyTicket(ledger,now);
     }
     private static void createDailyTicket(JSONObject ledger,long now){
         String today=LocalDate.ofInstant(Instant.ofEpochMilli(now),PRAGUE).toString();
