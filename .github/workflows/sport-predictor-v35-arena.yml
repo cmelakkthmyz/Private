@@ -69,7 +69,7 @@ jobs:
             Tiket Arena website is JS-driven; no unauthorized scraping or hidden bookmaker API.
             Live bookmaker odds are optional, not required for free simulations.
             No wagering, no login, no guaranteed accuracy or financial returns.
-            Debug-signed test package; same application ID and signing-key cache as v3.4 for in-place updates.
+            Debug-signed test package with a separate Android application ID; installs alongside v3.4 without signature conflicts.
           files: SportPredictorAI-3.5-ArenaLearning.apk
           fail_on_unmatched_files: true
           make_latest: false
