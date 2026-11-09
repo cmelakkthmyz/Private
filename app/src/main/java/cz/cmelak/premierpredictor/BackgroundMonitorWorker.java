@@ -84,7 +84,7 @@ public final class BackgroundMonitorWorker extends Worker {
         // commit() is synchronous so Android process death cannot discard forecasts.
         prefs(c).edit().putString("ledger",j.toString()).commit();
     }
-    public static JSONObject status(Context c){
+    public static JSONObject status(Context c) throws org.json.JSONException{
         JSONObject j=readLedger(c);
         return BackgroundForecastEngine.summary(j).put("enabled",enabled(c))
             .put("intervalHours",6)
@@ -225,6 +225,9 @@ public final class BackgroundMonitorWorker extends Worker {
         }
         return completed;
     }
+    private static void safePut(JSONObject target,String key,Object value){
+        try{target.put(key,value);}catch(org.json.JSONException ignored){}
+    }
     @NonNull @Override public Result doWork(){
         if(!enabled(getApplicationContext()))return Result.success();
         long now=System.currentTimeMillis();
@@ -241,8 +244,8 @@ public final class BackgroundMonitorWorker extends Worker {
                 JSONObject sources=ledger.optJSONObject("sources");
                 if(sources==null)sources=new JSONObject();
                 String message=e.getMessage()==null?"zdroj není dostupný":e.getMessage();
-                sources.put(league,"CHYBA · "+message);
-                ledger.put("sources",sources);
+                safePut(sources,league,"CHYBA · "+message);
+                safePut(ledger,"sources",sources);
                 store(getApplicationContext(),ledger);
             }
         }
@@ -250,12 +253,13 @@ public final class BackgroundMonitorWorker extends Worker {
             int settled=hockeyFinals(ledger,now);
             if(settled>0){
                 JSONObject sources=ledger.optJSONObject("sources");
-                if(sources!=null)sources.put("hockey-results",settled+" ověřeno po 60 minutách");
+                if(sources!=null)safePut(sources,"hockey-results",settled+" ověřeno po 60 minutách");
             }
         }catch(Exception ignored){}
-        BackgroundForecastEngine.finishCycle(ledger,now);
-        ledger.put("lastRun",Instant.ofEpochMilli(now).toString());
-        if(successful>0)ledger.put("lastSuccess",Instant.ofEpochMilli(now).toString());
+        try{BackgroundForecastEngine.finishCycle(ledger,now);}
+        catch(Exception e){safePut(ledger,"ticketError",String.valueOf(e.getMessage()));}
+        safePut(ledger,"lastRun",Instant.ofEpochMilli(now).toString());
+        if(successful>0)safePut(ledger,"lastSuccess",Instant.ofEpochMilli(now).toString());
         store(getApplicationContext(),ledger);
         return successful>0?Result.success():Result.retry();
     }
