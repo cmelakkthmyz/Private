@@ -3,10 +3,10 @@ android {
     namespace 'cz.cmelak.premierpredictor'
     compileSdk 35
     defaultConfig {
-        applicationId 'cz.cmelak.sportpredictor.modeltickets'
+        applicationId 'cz.cmelak.sportpredictor.arenalearning'
         minSdk 26
         targetSdk 35
-        versionCode 3
+        versionCode 1
         versionName '3.5.0'
     }
     compileOptions {
