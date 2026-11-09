@@ -211,3 +211,7 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 #arena-tips-import{min-height:47px;background:#7be5c5;color:#102c23;border-radius:10px;font-weight:800}
 #arena-tips-summary details summary{cursor:pointer;font-size:13px;color:#b7e8e2}
 @media(max-width:390px){.model-generate-actions{grid-template-columns:1fr}}
+
+.model-recheck-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.model-recheck-actions button{min-height:44px;padding:8px}
+@media(max-width:390px){.model-recheck-actions{grid-template-columns:1fr}}
