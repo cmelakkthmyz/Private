@@ -13,7 +13,9 @@ const makeDom=()=>{
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
   'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
-  'model-ticket-stake',
+  'model-ticket-stake','model-ticket-generate','model-ticket-save','model-ticket-check',
+  'model-ticket-action-status','model-journal-summary','model-journal-list',
+  'arena-tips-input','arena-tips-import','arena-import-status','arena-tips-summary',
   'profile-balanced','profile-longshot','profile-draws',
   'stake-10','stake-20','stake-50','scan-odds','auto-results','source-notice',
   'paper-pending','paper-completed','paper-profit','paper-status',
@@ -415,4 +417,60 @@ test('main model ticket stake selector updates every ticket line allocation',()=
  const html=t.controls['model-ticket-results'].innerHTML;
  assert.ok(html.includes('4 × 12.50 Kč = 50.00 Kč'),html);
  assert.equal(t.controls['stake-50'].attributes['aria-pressed'],'true');
+});
+
+test('generate and save buttons create an actual immutable model-only ticket journal entry',()=>{
+ const t=makeDom(),d=t.upcoming;
+ const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((s,i)=>{
+  const [h,a]=s.split('|');
+  return {...event(h,a,new Date(Date.parse(d)+i*3600000).toISOString()),id:'draft'+i};
+ });
+ t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.controls['model-ticket-generate'].listeners.click();
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vygenerovaný návrh'));
+ t.controls['model-ticket-save'].listeners.click();
+ const store=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
+ assert.equal(store.version,1);
+ assert.equal(store.drafts.length,1);
+ assert.equal(store.drafts[0].status,'pending');
+ assert.ok(store.drafts[0].legs.length>0);
+ assert.ok(t.controls['model-journal-summary'].textContent.includes('1 uložených'));
+ t.controls['model-ticket-save'].listeners.click();
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('už je uložený'));
+ const same=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
+ assert.equal(same.drafts.length,1);
+});
+test('different generated options may be selected and saved separately',()=>{
+ const t=makeDom(),d=t.upcoming;
+ const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((s,i)=>{
+  const [h,a]=s.split('|');
+  return {...event(h,a,new Date(Date.parse(d)+i*3600000).toISOString()),id:'draft'+i};
+ });
+ t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.controls['model-ticket-generate'].listeners.click();
+ t.controls['model-ticket-save'].listeners.click();
+ t.controls['model-ticket-generate'].listeners.click();
+ t.controls['model-ticket-save'].listeners.click();
+ const store=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
+ assert.equal(store.drafts.length,2);
+ assert.notEqual(store.drafts[0].fingerprint,store.drafts[1].fingerprint);
+});
+test('arena text import works without any bookmaker login and tracks future selections',()=>{
+ const t=makeDom();
+ t.controls['arena-tips-input'].value='Autor1;pl;Arsenal;Liverpool;'+t.upcoming+';1';
+ const before=t.calls.filter(x=>x==='all').length;
+ t.controls['arena-tips-import'].listeners.click();
+ const store=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
+ assert.equal(store.arena.length,1);
+ assert.equal(store.arena[0].status,'pending');
+ assert.equal(store.arena[0].source,'manual public Arena transcription');
+ assert.ok(t.controls['arena-tips-summary'].innerHTML.includes('1 importovaných'));
+ assert.ok(t.calls.filter(x=>x==='all').length>before);
+});
+test('check saved-ticket results button refreshes official league results',()=>{
+ const t=makeDom();
+ const before=t.calls.filter(x=>x==='all').length;
+ t.controls['model-ticket-check'].listeners.click();
+ assert.ok(t.calls.filter(x=>x==='all').length>before);
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Ověřuji'));
 });
