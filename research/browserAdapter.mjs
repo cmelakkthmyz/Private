@@ -2,6 +2,7 @@ import {emptyPaperLedger,checkPaperLedger,proposePaperTicket,placePaperTicket,se
 import {buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES} from './autoOddsScanner.mjs';
 import {evaluateCombo} from './ticketEvaluator.mjs';
 import {buildModelTicketSuggestions} from './modelTicketBuilder.mjs';
+import {emptyTicketJournal,storeTicketDraft,settleJournal,importArenaPicks,arenaStats,journalStats} from './modelTicketJournal.mjs';
 // Compiled by CI as a standalone browser asset. No accounts, tokens, or backend needed.
 import {predictIntelligence,BASELINE_CONFIG} from './intelligenceV2.mjs';
 import {newLearningState,adaptivePrediction,recordForecast,settleResult,learningSummary,rebuildLearningState} from './continualLearning.mjs';
@@ -13,6 +14,7 @@ globalThis.HockeyModel={hockeyStandingsProfile,hockeyFixtureRates,calibrateRegul
 
 globalThis.TicketCalculator={evaluateCombo};
 globalThis.ModelTicketBuilder={buildModelTicketSuggestions};
+globalThis.ModelTicketJournal={emptyTicketJournal,storeTicketDraft,settleJournal,importArenaPicks,arenaStats,journalStats};
 
 globalThis.AutoOdds={buildAutoTickets,matchOffer,evaluateOffer,normalizeOffer,normClub,AUTO_TICKET_PROFILES};
 
