@@ -7,6 +7,10 @@ on:
       - "research/**"
       - ".github/workflows/sport-predictor-v35-arena.yml"
   workflow_dispatch:
+# Only one build may mutate the stable APK release at a time.
+concurrency:
+  group: sport-predictor-v35-arena-release
+  cancel-in-progress: true
 jobs:
   build-apk:
     runs-on: ubuntu-latest
