@@ -15,10 +15,28 @@
 </nav>
 <div class="coverage" id="coverage"></div>
 <nav class="quick-jump" aria-label="Hlavní menu">
+ <a href="#automatic-monitor"><span>Automatika</span></a>
  <a href="#model-tickets"><span>Vytvořit tiket</span></a>
  <a href="#games"><span>Zápasy</span></a>
  <a href="#paper-lab"><span>Moje simulace</span></a>
 </nav>
+<section id="automatic-monitor" class="ticket-studio native-background" aria-labelledby="native-background-title">
+ <div class="eyebrow">AUTONOMNÍ REŽIM · BEZ OTEVŘENÉ APLIKACE</div>
+ <h2 id="native-background-title">Denní sledování zápasů a samoučení</h2>
+ <p>Telefon samostatně zpracovává Premier League, Chance Ligu a českou extraligu. Ukládá odhady před výkopem, ověřuje konečné výsledky a podle skutečných chyb kalibruje další předpovědi. Nepotřebuje placený API klíč.</p>
+ <div class="native-background-controls">
+  <button id="background-monitor-toggle" type="button">Pozastavit automatiku</button>
+  <button id="background-monitor-run" type="button">Spustit kontrolu</button>
+ </div>
+ <div id="background-monitor-status" class="odds-status" role="status" aria-live="polite">Čekám na plánovač Androidu…</div>
+ <div id="background-monitor-metrics" class="paper-overview" aria-live="polite"></div>
+ <div id="background-monitor-tickets" aria-live="polite"></div>
+ <details class="historical-details">
+  <summary>Předpovědi a vyhodnocené výsledky</summary>
+  <div id="background-monitor-history" class="native-background-history"></div>
+ </details>
+ <p class="source-notice">Automatické statistiky zobrazuje samostatný nativní model na pozadí. Výpočty se mohou lišit od modelu na otevřené obrazovce. Android může úlohy odložit při úspoře baterie, vypnutém připojení nebo po vynuceném zastavení aplikace. Žádné skutečné sázky se nepodávají.</p>
+</section>
 <section id="model-tickets" class="ticket-studio model-first" aria-labelledby="model-tickets-heading">
  <div class="eyebrow">HLAVNÍ FUNKCE · MODELOVÉ PREDIKCE</div>
  <div class="studio-head"><div>
