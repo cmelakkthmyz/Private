@@ -5,7 +5,7 @@ on:
     paths:
       - "app/**"
       - "research/**"
-      - ".github/workflows/sport-predictor-v35-model.yml"
+      - ".github/workflows/sport-predictor-v35-arena.yml"
   workflow_dispatch:
 jobs:
   build-apk:
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
-          key: sport-predictor-v35-debug-signing-v1
+          key: sport-predictor-v34-debug-signing-v1
       - name: Test and compile APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload installable APK
@@ -69,7 +69,7 @@ jobs:
             Tiket Arena website is JS-driven; no unauthorized scraping or hidden bookmaker API.
             Live bookmaker odds are optional, not required for free simulations.
             No wagering, no login, no guaranteed accuracy or financial returns.
-            Debug-signed test package, installs separately from older builds.
+            Debug-signed test package; same application ID and signing-key cache as v3.4 for in-place updates.
           files: SportPredictorAI-3.5-ArenaLearning.apk
           fail_on_unmatched_files: true
           make_latest: false
