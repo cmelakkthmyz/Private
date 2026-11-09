@@ -25,9 +25,13 @@ public final class BackgroundForecastEngine {
     private BackgroundForecastEngine() {}
 
     public static JSONObject empty() {
-        return new JSONObject().put("version",1).put("records",new JSONArray())
-                .put("tickets",new JSONArray()).put("lastRun",JSONObject.NULL)
-                .put("lastSuccess",JSONObject.NULL).put("sources",new JSONObject());
+        JSONObject j=new JSONObject();
+        try{
+            j.put("version",1).put("records",new JSONArray())
+             .put("tickets",new JSONArray()).put("lastRun",JSONObject.NULL)
+             .put("lastSuccess",JSONObject.NULL).put("sources",new JSONObject());
+        }catch(org.json.JSONException ignored){}
+        return j;
     }
 
     static final class Game {
@@ -172,7 +176,7 @@ public final class BackgroundForecastEngine {
         for(int i=0;i<3;i++)v[i]/=sum;
         return v;
     }
-    private static JSONObject pJson(double[] p){
+    private static JSONObject pJson(double[] p) throws org.json.JSONException{
         return new JSONObject().put("1",p[0]).put("X",p[1]).put("2",p[2]);
     }
     private static String best(double[] p){
@@ -232,7 +236,7 @@ public final class BackgroundForecastEngine {
         return new double[]{baseFor,baseAgainst,1.35};
     }
 
-    public static int settle(JSONArray saved,List<Game> games,long now){
+    public static int settle(JSONArray saved,List<Game> games,long now) throws org.json.JSONException{
         int count=0;
         for(Game g:games){
             if(!g.finished||g.starts>=now)continue;
@@ -247,7 +251,7 @@ public final class BackgroundForecastEngine {
         return count;
     }
 
-    public static int settleHockey(JSONArray saved,JSONArray results,long now){
+    public static int settleHockey(JSONArray saved,JSONArray results,long now) throws org.json.JSONException{
         List<Game> all=new ArrayList<>();
         for(int i=0;i<results.length();i++){
             JSONObject r=results.optJSONObject(i);
@@ -264,7 +268,7 @@ public final class BackgroundForecastEngine {
         return settle(saved,all,now);
     }
 
-    public static JSONObject ingest(JSONObject ledger,String league,JSONObject feed,long now){
+    public static JSONObject ingest(JSONObject ledger,String league,JSONObject feed,long now) throws org.json.JSONException{
         JSONArray saved=ledger.optJSONArray("records");
         if(saved==null){saved=new JSONArray();ledger.put("records",saved);}
         List<Game> all="hockey".equals(league)?hockeyGames(feed,now):footballGames(league,feed,now);
@@ -290,18 +294,18 @@ public final class BackgroundForecastEngine {
         return new JSONObject().put("fixtures",all.size()).put("created",created).put("settled",settled);
     }
 
-    private static void trim(JSONObject ledger,long now){
+    private static void trim(JSONObject ledger,long now) throws org.json.JSONException{
         JSONArray rows=ledger.optJSONArray("records");
         if(rows==null||rows.length()<=1600)return;
         JSONArray kept=new JSONArray();
         for(int i=Math.max(0,rows.length()-1400);i<rows.length();i++)kept.put(rows.optJSONObject(i));
         ledger.put("records",kept);
     }
-    public static void finishCycle(JSONObject ledger,long now){
+    public static void finishCycle(JSONObject ledger,long now) throws org.json.JSONException{
         createDailyTicket(ledger,now);
         evaluateDailyTickets(ledger,now);
     }
-    public static int evaluateDailyTickets(JSONObject ledger,long now){
+    public static int evaluateDailyTickets(JSONObject ledger,long now) throws org.json.JSONException{
         JSONArray records=ledger.optJSONArray("records"),tickets=ledger.optJSONArray("tickets");
         if(records==null||tickets==null)return 0;
         int evaluated=0;
@@ -336,7 +340,7 @@ public final class BackgroundForecastEngine {
         }
         return evaluated;
     }
-    private static void createDailyTicket(JSONObject ledger,long now){
+    private static void createDailyTicket(JSONObject ledger,long now) throws org.json.JSONException{
         String today=LocalDate.ofInstant(Instant.ofEpochMilli(now),PRAGUE).toString();
         JSONArray tickets=ledger.optJSONArray("tickets");
         if(tickets==null){tickets=new JSONArray();ledger.put("tickets",tickets);}
@@ -381,7 +385,7 @@ public final class BackgroundForecastEngine {
             .put("status","simulation").put("note","Bez kurzů, není to skutečná sázka"));
         while(tickets.length()>65)tickets.remove(0);
     }
-    public static JSONObject summary(JSONObject ledger){
+    public static JSONObject summary(JSONObject ledger) throws org.json.JSONException{
         JSONArray saved=ledger.optJSONArray("records");
         int pending=0,settled=0,correct=0;
         double brier=0;
