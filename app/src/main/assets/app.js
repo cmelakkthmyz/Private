@@ -52,7 +52,7 @@ let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
 let oddsProvider=['chance','tipsport-api'].includes(localStorage.getItem('sport-odds-provider'))?localStorage.getItem('sport-odds-provider'):'tipsport';
 let pendingChanceKeySave=false;
-let modelTicketType='auto',modelTicketMax=3,modelTicketOptions=[],selectedModelTicketId=null,modelTicketGenerateCount=0;
+let modelTicketType='auto',modelTicketMax=3,modelTicketOptions=[],selectedModelTicketId=null,modelTicketGenerateCount=0,modelTicketWaitingForFixtures=false;
 const MODEL_JOURNAL_KEY='sport-predictor-model-journal-v1';
 let modelTicketJournal=loadModelTicketJournal();
 function loadModelTicketJournal(){
@@ -446,7 +446,13 @@ function renderModelTicketJournal(){
  'Pro případné učení z komunitních tipů je potřeba nejméně 30 nezávisle vyhodnocených tipů od více autorů.')+'</p>';
 }
 function generateNextModelTicket(){
- if(!modelTicketOptions.length){$('model-ticket-action-status').textContent='Nejsou načtené budoucí zápasy. Použij Aktualizovat zápasy.';return;}
+ if(!modelTicketOptions.length){
+  $('model-ticket-action-status').textContent='Hledám aktuální budoucí zápasy pro nový tiket…';
+  modelTicketWaitingForFixtures=true;
+  if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
+  else $('model-ticket-action-status').textContent='Zápasy zatím nejsou k dispozici. Připoj telefon k internetu.';
+  return;
+ }
  let index=modelTicketGenerateCount?modelTicketOptions.findIndex(t=>t.id===selectedModelTicketId):-1;
  index=(index+1)%modelTicketOptions.length;
  selectedModelTicketId=modelTicketOptions[index].id;
@@ -916,6 +922,11 @@ globalThis.receiveAllLeagues=function(raw){
   for(const league of ['pl','cz','hockey'])collectCandidatesForLeague(league,responses[league]);
  }catch(e){backgroundErrors.system=e.message||'Neplatná data'}
  renderModelTickets();renderOdds();
+ if(modelTicketWaitingForFixtures){
+  modelTicketWaitingForFixtures=false;
+  if(modelTicketOptions.length)generateNextModelTicket();
+  else $('model-ticket-action-status').textContent='Zdroje nyní nevrátily budoucí zápasy. Zkus aktualizaci později.';
+ }
  if(current==='pl')renderCoverage();
  requestHockeyPaperResults();
 };
