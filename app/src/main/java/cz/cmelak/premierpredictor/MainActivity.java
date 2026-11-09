@@ -39,6 +39,8 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (webView != null) webView.evaluateJavascript(
+            "window.refreshBackgroundMonitor&&window.refreshBackgroundMonitor();", null);
+        if (webView != null) webView.evaluateJavascript(
             "window.sportPredictorOnResume&&window.sportPredictorOnResume();", null);
     }
 
@@ -53,6 +55,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(10, 19, 35));
         getWindow().setNavigationBarColor(Color.rgb(10, 19, 35));
+        BackgroundMonitorWorker.schedule(this);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(10, 19, 35));
         WebSettings settings = webView.getSettings();
@@ -86,6 +89,23 @@ public final class MainActivity extends Activity {
     }
 
     private final class Bridge {
+        @JavascriptInterface public void backgroundStatus() {
+            executor.execute(() -> {
+                final String result=BackgroundMonitorWorker.status(MainActivity.this).toString();
+                runOnUiThread(() -> {
+                    if(webView!=null)webView.evaluateJavascript(
+                        "window.receiveBackgroundMonitorStatus("+JSONObject.quote(result)+");",null);
+                });
+            });
+        }
+        @JavascriptInterface public void backgroundCheckNow() {
+            BackgroundMonitorWorker.checkNow(MainActivity.this);
+            backgroundStatus();
+        }
+        @JavascriptInterface public void backgroundEnabled(boolean enabled) {
+            BackgroundMonitorWorker.setEnabled(MainActivity.this,enabled);
+            backgroundStatus();
+        }
         @JavascriptInterface public void loadAllLeagues() {
             executor.execute(() -> {
                 JSONObject responses = new JSONObject();
