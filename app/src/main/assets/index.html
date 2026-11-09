@@ -50,10 +50,34 @@
    </select>
   </label>
  </div>
- <button id="model-ticket-refresh" type="button" class="wide scan-button">Znovu spočítat analýzy a tikety</button>
+ <div class="model-generate-actions">
+  <button id="model-ticket-generate" type="button" class="wide scan-button">Vygenerovat nový tiket</button>
+  <button id="model-ticket-save" type="button" class="wide">Uložit vybraný tiket nanečisto</button>
+ </div>
+ <button id="model-ticket-refresh" type="button" class="wide secondary">Aktualizovat zápasy</button>
+ <p id="model-ticket-action-status" class="source-notice" role="status" aria-live="polite">Vyber typ a počet zápasů. Klikni na Vygenerovat nový tiket.</p>
  <p id="model-ticket-status" class="odds-status" role="status" aria-live="polite">Načítám budoucí zápasy a sestavuji pravděpodobnosti…</p>
  <div id="model-ticket-results" aria-live="polite"></div>
+ <section class="model-draft-history" aria-labelledby="model-draft-title">
+  <h3 id="model-draft-title">Moje uložené návrhy</h3>
+  <p id="model-journal-summary" class="source-notice">Zatím žádné uložené tikety.</p>
+  <div id="model-journal-list" aria-live="polite"></div>
+ </section>
  <p class="source-notice">Jde o modelové návrhy, nikoli automaticky vsazené tikety. Bez nezávisle ověřených kurzů se neuvádí finanční výhodnost ani smyšlená výplata. Hokejová remíza znamená stav po 60 minutách. MAXIKOMBI je vlastní modelový rozpis a může se lišit od pravidel konkrétní sázkové kanceláře.</p>
+</section>
+<section id="arena-learning" class="ticket-studio arena-learning" aria-labelledby="arena-heading">
+ <div class="eyebrow">ZDARMA · KOMUNITNÍ VÝSLEDKY</div>
+ <h2 id="arena-heading">Tipsport Tiket aréna – sledování tipů</h2>
+ <p class="source-notice">Otevři veřejné sdílené tikety v Tipsportu. Přenes vybrané předzápasové tipy sem jako text: aplikace je uloží, po zápase ověří výsledky a vypočítá statistiku. Automatický přístup k historii uživatelů není ověřený.</p>
+ <p><a class="arena-link" href="https://www.tipsport.cz/tiket-arena">Otevřít Tipsport Tiket arénu</a></p>
+ <details id="arena-import-details">
+  <summary>Vložit veřejně sdílené tipy</summary>
+  <p class="source-notice">Každý tip na samostatný řádek: Přezdívka;liga;domácí;hosté;datum a čas ISO;1/X/2. Ligy: pl, cz, hockey. Příklad zápisu: Tipér;pl;Arsenal;Chelsea;2026-11-21T16:00:00+01:00;1. Jen předzápasové tipy, bez hesel.</p>
+  <textarea id="arena-tips-input" rows="4" placeholder="Přezdívka;pl;Arsenal;Chelsea;2026-11-21T16:00:00+01:00;1"></textarea>
+  <button id="arena-tips-import" type="button" class="wide">Uložit tipy ke sledování</button>
+ </details>
+ <p id="arena-import-status" class="odds-status" role="status" aria-live="polite">Zatím nejsou importované žádné tipy.</p>
+ <div id="arena-tips-summary"></div>
 </section>
 <section id="paper-lab" class="paper-lab" aria-labelledby="paper-title">
  <div class="eyebrow">BEZ REÁLNÝCH PENĚZ</div>
