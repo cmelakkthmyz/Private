@@ -18,7 +18,7 @@ function scoreForSelectedPick(xgHome,xgAway,pick){
   return score;
 }
 
-const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds,PAPER=globalThis.PaperBet,MODEL_TICKETS=globalThis.ModelTicketBuilder;
+const MOD=globalThis.PredictorV2,OLD=globalThis.PLModel,HOCK=globalThis.HockeyModel,AUTO=globalThis.AutoOdds,PAPER=globalThis.PaperBet,MODEL_TICKETS=globalThis.ModelTicketBuilder,MODEL_JOURNAL=globalThis.ModelTicketJournal;
 const ARCHIVE=globalThis.CZ_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{loadedTrainingSeasons:0,requestedTrainingSeasons:20}};
 const EN_ARCHIVE=globalThis.ENG_ARCHIVE||{matches:[],verifiedSeasons:[],coverage:{complete:0,requested:21}};
 const VALIDATED=globalThis.V3_VALIDATION||{production:{advancedHistory:false,venueWeight:0,shotsWeight:0}};
@@ -52,7 +52,20 @@ let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
 let oddsProvider=['chance','tipsport-api'].includes(localStorage.getItem('sport-odds-provider'))?localStorage.getItem('sport-odds-provider'):'tipsport';
 let pendingChanceKeySave=false;
-let modelTicketType='auto',modelTicketMax=3;
+let modelTicketType='auto',modelTicketMax=3,modelTicketOptions=[],selectedModelTicketId=null,modelTicketGenerateCount=0;
+const MODEL_JOURNAL_KEY='sport-predictor-model-journal-v1';
+let modelTicketJournal=loadModelTicketJournal();
+function loadModelTicketJournal(){
+ try{
+  const p=JSON.parse(localStorage.getItem(MODEL_JOURNAL_KEY)||'null');
+  if(p?.version===1&&Array.isArray(p.drafts)&&Array.isArray(p.arena))return p;
+ }catch(e){}
+ return MODEL_JOURNAL.emptyTicketJournal();
+}
+function saveModelTicketJournal(){
+ try{localStorage.setItem(MODEL_JOURNAL_KEY,JSON.stringify(modelTicketJournal));return true;}
+ catch(e){$('model-ticket-action-status').textContent='Uložení se nezdařilo – zkontroluj dostupné místo.';return false;}
+}
 const oddsCacheKey=()=>oddsProvider==='chance'?'auto-odds-v1:chance':oddsProvider==='tipsport-api'?'auto-odds-v2:tipsport-api':'auto-odds-v1';
 let livePlContext=null,livePlTimestamp=null,backgroundErrors={};
 const candidatesByLeague={pl:[],cz:[],hockey:[]};
@@ -297,6 +310,9 @@ function createPaperFromLive(){
 }
 function absorbVerifiedOutcomes(results){
  if(!Array.isArray(results)||!results.length)return 0;
+ const journalCheck=MODEL_JOURNAL.settleJournal(modelTicketJournal,results);
+ if(journalCheck.newDrafts||journalCheck.newArena||journalCheck.newLegs)saveModelTicketJournal();
+ renderModelTicketJournal();
  const asOf=new Date().toISOString();
  const checked=PAPER.settlePaperTickets(paperLedger,results,{asOf});
  if(checked.newlySettled.length||checked.newlyVerifiedLegs.length)savePaperLedger();
