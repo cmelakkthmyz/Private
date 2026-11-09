@@ -299,6 +299,42 @@ public final class BackgroundForecastEngine {
     }
     public static void finishCycle(JSONObject ledger,long now){
         createDailyTicket(ledger,now);
+        evaluateDailyTickets(ledger,now);
+    }
+    public static int evaluateDailyTickets(JSONObject ledger,long now){
+        JSONArray records=ledger.optJSONArray("records"),tickets=ledger.optJSONArray("tickets");
+        if(records==null||tickets==null)return 0;
+        int evaluated=0;
+        for(int k=0;k<tickets.length();k++){
+            JSONObject ticket=tickets.optJSONObject(k);
+            if(ticket==null||"evaluated".equals(ticket.optString("status")))continue;
+            JSONArray legs=ticket.optJSONArray("legs");
+            if(legs==null||legs.length()<2)continue;
+            int correct=0;
+            boolean allSettled=true;
+            for(int j=0;j<legs.length();j++){
+                JSONObject leg=legs.optJSONObject(j);
+                if(leg==null){allSettled=false;break;}
+                JSONObject record=null;
+                String id=leg.optString("matchId","");
+                for(int i=0;i<records.length();i++){
+                    JSONObject r=records.optJSONObject(i);
+                    if(r!=null&&id.equals(r.optString("id"))){record=r;break;}
+                }
+                if(record==null||!"settled".equals(record.optString("status"))){
+                    allSettled=false;break;
+                }
+                if(record.optBoolean("correct",false))correct++;
+            }
+            if(!allSettled)continue;
+            int rows=legs.length()==3?(correct==3?4:correct==2?1:0)
+                    :(correct==2?1:0);
+            ticket.put("status","evaluated").put("hitRows",rows)
+                .put("correctLegs",correct)
+                .put("settledAt",Instant.ofEpochMilli(now).toString());
+            evaluated++;
+        }
+        return evaluated;
     }
     private static void createDailyTicket(JSONObject ledger,long now){
         String today=LocalDate.ofInstant(Instant.ofEpochMilli(now),PRAGUE).toString();
