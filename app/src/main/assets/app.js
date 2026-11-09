@@ -376,6 +376,17 @@ function requestHockeyPaperResults(){
    if(day<today)days.add(day);
   }
  }
+ const pending=[
+  ...modelTicketJournal.drafts.flatMap(t=>t.legs.filter(l=>l.status==='pending')),
+  ...modelTicketJournal.arena.filter(a=>a.status==='pending')
+ ];
+ for(const leg of pending){
+  if(leg.league!=='hockey')continue;
+  const ms=Date.parse(leg.kickoff);
+  if(!Number.isFinite(ms)||now-ms<2.5*3600000||now-ms>12*86400000)continue;
+  const day=pageDateInPrague(ms);
+  if(day<today)days.add(day);
+ }
  if(days.size)globalThis.AndroidPredictor.loadPaperHockeyResults(JSON.stringify([...days].sort().slice(-8)));
 }
 globalThis.receivePaperHockeyResults=function(raw){
@@ -979,6 +990,11 @@ $('model-ticket-refresh').addEventListener('click',()=>{
 });
 $('model-ticket-generate').addEventListener('click',generateNextModelTicket);
 $('model-ticket-save').addEventListener('click',()=>saveGeneratedTicket());
+$('model-ticket-check').addEventListener('click',()=>{
+ $('model-ticket-action-status').textContent='Ověřuji skutečné výsledky uložených tiketů…';
+ if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
+ requestHockeyPaperResults();
+});
 $('arena-tips-import').addEventListener('click',importArenaFromText);
 $('model-ticket-results').addEventListener('click',e=>{
  const option=e.target?.closest?.('[data-model-ticket-index]');
