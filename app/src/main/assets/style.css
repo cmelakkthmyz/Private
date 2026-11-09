@@ -188,3 +188,26 @@ font-size:12px;margin:9px 0 8px;padding-top:12px}
 .model-selection-note strong{display:block;font-size:15px;color:#c5f4e5}
 .model-selection-note p{font-size:12px;color:#c1d6df;line-height:1.5;margin:7px 0 0}
 .model-ticket-primary{border:2px solid #74e6ba}
+
+/* Real action controls for model-only tickets and local Arena research */
+.model-generate-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 9px}
+.model-generate-actions button{min-height:52px;padding:10px 9px;font-size:13px;font-weight:800;border-radius:11px}
+#model-ticket-save{background:#254558;color:#edf7fc;border:1px solid #73b7bd}
+#model-ticket-refresh{min-height:41px;border-radius:10px;background:#1a3349;color:#d7ecf4;border:1px solid #426579}
+.model-pick-option{margin-top:11px;min-height:43px;padding:9px 14px;background:#274b63;color:#e9f9fd;border:1px solid #5c819a;border-radius:10px}
+.model-ticket-primary .model-pick-option{background:#7be5c5;color:#092e24;border-color:#7be5c5}
+.model-draft-history{margin-top:19px;border-top:1px solid #507b85;padding-top:12px}
+.model-draft-history h3{font-size:16px}
+.model-journal-row{margin:9px 0;border-radius:10px;border:1px solid #436078;padding:11px;background:#162d40;font-size:12px}
+.model-journal-row strong{display:block;color:#b8f8e7;font-size:13px}
+.model-journal-row small{display:block;color:#a8c6d5;margin:6px 0;line-height:1.5}
+.arena-learning{border:1px solid #477b89}
+.arena-learning h2{font-size:23px}
+.arena-link{display:inline-block;padding:11px 14px;border-radius:10px;border:1px solid #64bdba;color:#bef9ec}
+#arena-import-details{padding:10px 0 16px}
+#arena-import-details summary{cursor:pointer;color:#b9fae9;font-weight:750}
+#arena-import-details textarea{display:block;width:100%;min-height:112px;resize:vertical;margin:12px 0;padding:12px;
+ background:#112b3f;color:#edf8fd;border:1px solid #557b88;border-radius:10px;font:12px/1.5 monospace}
+#arena-tips-import{min-height:47px;background:#7be5c5;color:#102c23;border-radius:10px;font-weight:800}
+#arena-tips-summary details summary{cursor:pointer;font-size:13px;color:#b7e8e2}
+@media(max-width:390px){.model-generate-actions{grid-template-columns:1fr}}
