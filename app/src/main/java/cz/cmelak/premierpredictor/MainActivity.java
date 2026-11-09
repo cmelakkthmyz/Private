@@ -91,7 +91,10 @@ public final class MainActivity extends Activity {
     private final class Bridge {
         @JavascriptInterface public void backgroundStatus() {
             executor.execute(() -> {
-                final String result=BackgroundMonitorWorker.status(MainActivity.this).toString();
+                String payload;
+                try{payload=BackgroundMonitorWorker.status(MainActivity.this).toString();}
+                catch(Exception e){payload=new JSONObject().toString();}
+                final String result=payload;
                 runOnUiThread(() -> {
                     if(webView!=null)webView.evaluateJavascript(
                         "window.receiveBackgroundMonitorStatus("+JSONObject.quote(result)+");",null);
