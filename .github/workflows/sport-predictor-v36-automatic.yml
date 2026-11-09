@@ -1,0 +1,85 @@
+name: Sport Predictor AI 3.6 Background Auto Monitor APK
+on:
+  push:
+    branches: [sport-predictor-v36-automatic-mode]
+    paths:
+      - "app/**"
+      - "research/**"
+      - ".github/workflows/sport-predictor-v36-automatic.yml"
+  workflow_dispatch:
+# Only one build may mutate the stable APK release at a time.
+concurrency:
+  group: sport-predictor-v36-automatic-release
+  cancel-in-progress: true
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Generate model and historical archives
+        run: |
+          npm install --no-save esbuild@0.25.12
+          ./node_modules/.bin/esbuild research/browserAdapter.mjs --bundle --format=iife --target=es2020 --minify --outfile=app/src/main/assets/intelligence.js
+          node research/buildMobileArchive.mjs
+      - name: JavaScript syntax and UI unit tests
+        run: |
+          node --check app/src/main/assets/app.js
+          node --test test/model.test.cjs research/mobileSmoke.test.mjs research/autoOddsScanner.test.mjs research/ticketEvaluator.test.mjs research/paperSimulation.test.mjs research/modelTicketBuilder.test.mjs research/modelTicketJournal.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Install Android SDK 35
+        run: |
+          echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      # Persist only the *debug* signing key between CI builds.
+      # This allows installing updates without Android rejecting changed signatures.
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: sport-predictor-v34-debug-signing-v1
+      - name: Test and compile APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SportPredictorAI-3.6-AutoMonitor-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Name the APK for direct GitHub downloads
+        run: cp app/build/outputs/apk/debug/app-debug.apk SportPredictorAI-3.6-AutoMonitor.apk
+      - name: Publish direct APK download in GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sport-predictor-v3.6-auto
+          name: Sport Predictor AI 3.6 – Background Auto Monitor
+          body: |
+            Sport Predictor AI v3.6 (Android).
+            Independent Poisson and Elo-based probability forecasts (1/X/2).
+            Free, model-first SOLO / AKU / KOMBI / MAXIKOMBI ticket simulations.
+            Supports 1-4 matches, multi-line ticket descriptions and stake allocation.
+            Generating and saving model-only tickets; automatic outcome settlement.
+            Optional manual Tipsport Tiket Arena research with verified result comparison.
+            Tiket Arena website is JS-driven; no unauthorized scraping or hidden bookmaker API.
+            Live bookmaker odds are optional, not required for free simulations.
+            No wagering, no login, no guaranteed accuracy or financial returns.
+            Includes AndroidX WorkManager periodic six-hour background monitoring.
+            Works without keeping the app open; Android may delay work due to Doze, lack of network or force-stop.
+            Predicts PL, Czech Chance Liga and Czech Extraliga from free public data; saves before-kickoff snapshots.
+            Verifies final scores, tracks accuracy and Brier score, and adjusts probabilities after sufficient results.
+            Creates and grades daily internal-only tickets; no real bets are placed.
+            Tipsport Arena has no verified open export/API, so automatic Arena collection is not claimed.
+            Debug-signed; installs separately alongside previous builds.
+          files: SportPredictorAI-3.6-AutoMonitor.apk
+          fail_on_unmatched_files: true
+          make_latest: false
