@@ -253,6 +253,7 @@ public final class BackgroundMonitorWorker extends Worker {
                 if(sources!=null)sources.put("hockey-results",settled+" ověřeno po 60 minutách");
             }
         }catch(Exception ignored){}
+        BackgroundForecastEngine.finishCycle(ledger,now);
         ledger.put("lastRun",Instant.ofEpochMilli(now).toString());
         if(successful>0)ledger.put("lastSuccess",Instant.ofEpochMilli(now).toString());
         store(getApplicationContext(),ledger);
