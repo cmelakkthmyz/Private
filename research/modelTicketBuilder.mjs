@@ -12,13 +12,23 @@ function validFixture(m,now){
  const sum=p['1']+p.X+p['2'];
  if(Math.abs(sum-1)>.035)return null;
  for(const k of PICKS)p[k]/=sum;
- const pick=PICKS.reduce((a,b)=>p[b]>p[a]?b:a,'1');
  const odds=Object.fromEntries(PICKS.map(k=>[k,Number(m.odds?.[k])]));
  const hasOdds=PICKS.every(k=>Number.isFinite(odds[k])&&odds[k]>1.01&&odds[k]<=150);
+ // A "value" selection is not necessarily the most likely outcome.
+ // Evaluate 1, X, and 2 separately; a draw can carry the best model edge.
+ const favorite=PICKS.reduce((a,b)=>p[b]>p[a]?b:a,'1');
+ const valueMarkets=hasOdds?PICKS.map(pick=>({
+  pick,edge:p[pick]*odds[pick]-1,
+  // Edge matters most, but a very improbable longshot is penalized.
+  score:(p[pick]*odds[pick]-1)*.65+p[pick]*.35
+ })).sort((a,b)=>b.score-a.score):[];
+ const bestValue=valueMarkets.filter(m=>m.edge>0).at(0);
+ const pick=bestValue?.pick||favorite;
  return {
   id:String(m.id||m.league+'_'+m.home+'_'+m.away+'_'+kickoff),
   league:m.league,home:String(m.home),away:String(m.away),
   kickoff:new Date(kickoff).toISOString(),pick,probabilities:p,probability:p[pick],
+  edge:hasOdds?p[pick]*odds[pick]-1:null,
   price:hasOdds?odds[pick]:null,
   odds:hasOdds?odds:null,marketSource:hasOdds?String(m.bookmaker||'datový poskytovatel'):null,
   xgHome:m.xgHome!=null&&Number.isFinite(Number(m.xgHome))?Number(m.xgHome):null,
@@ -169,7 +179,7 @@ export function buildModelTicketSuggestions(fixtures,{
   x.probability*x.price-1>=Number(minEdge||0)):unique;
  const ranked=eligible.sort((a,b)=>{
   const score=x=>requirePrices?
-   (x.probability*x.price-1)*.8+x.probability*.2:
+   (x.edge??-1)*.65+x.probability*.35:
    x.probability;
   return score(b)-score(a)||Date.parse(a.kickoff)-Date.parse(b.kickoff);
  }).slice(0,40);
@@ -179,12 +189,17 @@ export function buildModelTicketSuggestions(fixtures,{
  const reroll=clamp(Math.trunc(Number(generationIndex)||0),0,100000);
  function chooseLegs(k,variant){
   if(k>pool.length)return null;
-  // Rotate one of the stronger fixtures out for the next real candidate.
-  // Unlike the old button, subsequent generations can change the match set.
-  const excluded=pool.length===k||variant===0&&reroll===0?-1:(k-1-((variant+reroll-1)%k));
+  // Reroll explores a different nearby pool, not merely a different card
+  // built from the same first K matches. Keep a bias toward high-ranked bets.
+  const window=Math.min(pool.length,Math.max(k+4,Math.ceil(k*1.5)));
+  const offset=(reroll*2+variant*3)%window;
   const picked=[];
-  for(let i=0;i<pool.length&&picked.length<k;i++){
-   if(i===excluded)continue;
+  for(let i=0;i<window&&picked.length<k;i++){
+   const candidate=pool[(offset+i)%window];
+   if(picked.every(existing=>independent(existing,candidate)))picked.push(candidate);
+  }
+  // With shared clubs inside the shortlist, use the rest of the pool too.
+  if(picked.length<k)for(let i=window;i<pool.length&&picked.length<k;i++){
    const candidate=pool[i];
    if(picked.every(existing=>independent(existing,candidate)))picked.push(candidate);
   }
