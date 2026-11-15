@@ -52,7 +52,7 @@ let hockeyStandings=null,hockeyUpdated=null,ticketCandidates=[];
 let bookmakerOffers=[],oddsReceivedAt=null,oddsError='',ticketProfile='balanced',ticketStake=20;
 let oddsProvider=['chance','tipsport-api'].includes(localStorage.getItem('sport-odds-provider'))?localStorage.getItem('sport-odds-provider'):'tipsport';
 let pendingChanceKeySave=false;
-let modelTicketType='auto',modelTicketMax=3,modelTicketOptions=[],selectedModelTicketId=null,modelTicketGenerateCount=0,modelTicketWaitingForFixtures=false;
+let modelTicketType='auto',modelTicketMin=5,modelTicketMax=20,modelTicketOptions=[],selectedModelTicketId=null,modelTicketGenerateCount=0,modelTicketWaitingForFixtures=false;
 const MODEL_JOURNAL_KEY='sport-predictor-model-journal-v1';
 let modelTicketJournal=loadModelTicketJournal();
 function loadModelTicketJournal(){
@@ -502,21 +502,20 @@ function renderModelTicketJournal(){
  'Pro případné učení z komunitních tipů je potřeba nejméně 30 nezávisle vyhodnocených tipů od více autorů.')+'</p>';
 }
 function generateNextModelTicket(){
+ modelTicketGenerateCount++;
+ selectedModelTicketId=null;
+ renderModelTickets();
  if(!modelTicketOptions.length){
-  $('model-ticket-action-status').textContent='Hledám aktuální budoucí zápasy pro nový tiket…';
-  modelTicketWaitingForFixtures=true;
-  if(globalThis.AndroidPredictor?.loadAllLeagues)globalThis.AndroidPredictor.loadAllLeagues();
-  else $('model-ticket-action-status').textContent='Zápasy zatím nejsou k dispozici. Připoj telefon k internetu.';
+  $('model-ticket-action-status').textContent=
+   'Nový použitelný návrh zatím nevznikl. Zkontroluj zdroj aktuálních kurzů a požadovaný rozsah zápasů.';
+  if(!Object.values(candidatesByLeague).flat().length&&globalThis.AndroidPredictor?.loadAllLeagues)
+   globalThis.AndroidPredictor.loadAllLeagues();
   return;
  }
- let index=modelTicketGenerateCount?modelTicketOptions.findIndex(t=>t.id===selectedModelTicketId):-1;
- index=(index+1)%modelTicketOptions.length;
- selectedModelTicketId=modelTicketOptions[index].id;
- modelTicketGenerateCount++;
- renderModelTickets();
- $('model-ticket-action-status').textContent='Vygenerovaný návrh: '+modelTicketOptions[index].label+
-  ' · '+modelTicketOptions[index].legCount+' zápasů · '+modelTicketOptions[index].lineCount+
-  ' řádků. Pomocí Uložit vybraný tiket ho zaznamenáš nanečisto.';
+ const chosen=modelTicketOptions.find(t=>t.id===selectedModelTicketId)||modelTicketOptions[0];
+ $('model-ticket-action-status').textContent='Nový modelový návrh: '+chosen.label+
+  ' · '+chosen.legCount+' zápasů · '+chosen.lineCount+
+  ' řádků. Zisk není zaručen. Uložit ho lze pouze nanečisto.';
 }
 function saveGeneratedTicket(ticket){
  const chosen=ticket||modelTicketOptions.find(t=>t.id===selectedModelTicketId);
@@ -546,50 +545,96 @@ function renderModelTickets(){
  const el=$('model-ticket-results'),info=$('model-ticket-status');
  if(!el||!info)return;
  const entries=Object.values(candidatesByLeague).flat();
- if(!entries.length){info.textContent='Čekám na první načtené zápasy. Placené API není potřeba.';el.innerHTML='';return;}
- if(!MODEL_TICKETS?.buildModelTicketSuggestions){info.textContent='Chybí modul návrhu tiketů. Je nutná nová verze aplikace.';el.innerHTML='';return;}
+ if(!entries.length){
+  modelTicketOptions=[];
+  info.textContent='Čekám na aktuální budoucí zápasy z výsledkových zdrojů.';
+  el.innerHTML='<div class="no-edges">Dosud nemám zápasy. Použij Aktualizovat zápasy.</div>';
+  return;
+ }
+ if(!MODEL_TICKETS?.buildModelTicketSuggestions){
+  info.textContent='Chybí modul návrhu tiketů. Je nutná nová verze aplikace.';
+  el.innerHTML='';return;
+ }
  try{
-  const freshApiPrice=oddsProvider!=='tipsport'&&oddsReceivedAt&&Date.now()-Date.parse(oddsReceivedAt)<5*60_000;
+  // The free morning snapshot is NOT a verified current bookmaker quote.
+  const quoteAge=Date.now()-Date.parse(oddsReceivedAt||'');
+  const freshApiPrice=oddsProvider!=='tipsport'&&Number.isFinite(quoteAge)&&
+   quoteAge>=0&&quoteAge<5*60_000;
   const paired=freshApiPrice?bookmakerOffers.map(o=>AUTO.matchOffer(o,entries)).filter(Boolean):[];
-  const prices=new Map(paired.map(x=>[x.fixture.id,x.offer]));
-  const priced=entries.map(x=>({...x,odds:prices.get(x.id)?.odds,bookmaker:prices.get(x.id)?.bookmaker}));
-  const data=MODEL_TICKETS.buildModelTicketSuggestions(priced,{stake:ticketStake,maxMatches:modelTicketMax});
-  const options=(modelTicketType==='auto'?data.alternatives:data.alternatives.filter(t=>t.type===modelTicketType)).slice(0,6);
- modelTicketOptions=options;
- if(!options.some(t=>t.id===selectedModelTicketId))selectedModelTicketId=options[0]?.id||null;
-  info.textContent='Model analyzoval '+data.fixturesEligible+' budoucích zápasů. '+data.basis+'.';
- const recommended=options.find(t=>t.id===selectedModelTicketId)||options[0]||null;
- const summary=recommended?'<div class="model-selection-note"><strong>'+
- (modelTicketType==='auto'?'Vybraný návrh: ':'Zvolený typ: ')+escapeText(recommended.label)+
- '</strong><p>'+(recommended.hasPrices?
- 'Odhad pracuje s nejistými pravděpodobnostmi a kurzy, výdělek nezaručuje.':
- 'Bez kurzů jde o výběr podle šance zásahu, nikoli podle výnosnosti.')+
- ' Výpočet kombinací předpokládá přibližnou nezávislost utkání.</p></div>':'';
-  if(!options.length){el.innerHTML='<div class="no-edges">Pro zvolený typ tiketu zatím není dost nezávislých zápasů. Zkus SOLO nebo přepni počet utkání.</div>';return;}
+  const prices=new Map(paired.map(x=>[x.fixture.league+':'+x.fixture.id,x.offer]));
+  const priced=entries.map(x=>{
+   const offer=prices.get(x.league+':'+x.id);
+   return {...x,odds:offer?.odds,bookmaker:offer?.bookmaker};
+  });
+  const data=MODEL_TICKETS.buildModelTicketSuggestions(priced,{
+   stake:ticketStake,minMatches:modelTicketMin,maxMatches:modelTicketMax,
+   generationIndex:modelTicketGenerateCount,requirePrices:true,
+   minEdge:.03,minRowStake:1
+  });
+  const options=(modelTicketType==='auto'?data.alternatives:
+   data.alternatives.filter(t=>t.type===modelTicketType)).slice(0,6);
+  modelTicketOptions=options;
+  if(!options.some(t=>t.id===selectedModelTicketId))selectedModelTicketId=options[0]?.id||null;
+  info.textContent='Prověřeno '+data.fixturesEligible+' budoucích zápasů · '+
+   data.pricedMatches+' s použitelným kurzem · '+data.valueMatches+
+   ' s kladnou modelovou hodnotou (min. +3 % na výběr). '+
+   'Rozsah '+modelTicketMin+'–'+modelTicketMax+' zápasů. '+
+   (freshApiPrice?'Zdroj: '+(oddsProvider==='chance'?'Chance':'Tipsport')+
+    ' přes PulseScore; kurzy se mohou změnit.':
+    'Bez čerstvých API kurzů nelze hledat výhodné tikety.');
+  if(!options.length){
+   el.innerHTML='<div class="no-edges"><strong>Žádný odpovídající tiket.</strong><p>'+
+    escapeText(data.reason||'Zvolený typ nebo rozpočet pro daný počet zápasů nevychází.')+
+    '</p><p>Nezobrazuji falešné výhodné kombinace. Vyber jiný rozsah, případně nastav zdroj aktuálních kurzů níže.</p></div>';
+   return;
+  }
+  const recommended=options.find(t=>t.id===selectedModelTicketId)||options[0];
+  const summary='<div class="model-selection-note"><strong>'+
+   (modelTicketType==='auto'?'Modelové pořadí podle hodnoty a rizika: ':'Zvolený systém: ')+
+   escapeText(recommended.label)+'</strong><p>Jde o modelový odhad, nikoli ověřenou dlouhodobou výhodu. '+
+   'Všechny tipy musí být před sázkou porovnány s aktuální nabídkou kanceláře. '+
+   'Počet řádků a minimální vklad u sázkovky mohou být jiné.</p></div>';
+  const renderLeg=(x,i)=>'<div class="model-leg"><strong class="model-letter">'+
+   String.fromCharCode(65+(i%26))+'</strong><div><strong>'+escapeText(x.home)+' – '+
+   escapeText(x.away)+'</strong><small>'+escapeText(LEAGUES[x.league]?.title||x.league)+
+   ' · '+new Date(x.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
+   '</small><small>Tip: '+escapeText(x.pick)+' · Kurz: '+
+   (x.price===null?'–':x.price.toFixed(2)+'×')+
+   ' · Modelová hodnota: '+((x.probability*(x.price||0)-1)*100).toFixed(1)+
+   ' %</small></div><span class="model-pick">'+escapeText(x.pick)+
+   '<small>'+pct(x.probability)+'</small></span></div>';
   el.innerHTML=summary+options.map((t,index)=>{
-   const legs=t.legs.map((x,i)=>'<div class="model-leg"><strong class="model-letter">'+String.fromCharCode(65+i)+'</strong><div><strong>'+escapeText(x.home)+' – '+escapeText(x.away)+'</strong><small>'+
-     escapeText(LEAGUES[x.league]?.title||x.league)+' · '+new Date(x.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
-     '</small><small>1 '+pct(x.probabilities['1'])+' · X '+pct(x.probabilities.X)+' · 2 '+pct(x.probabilities['2'])+
-     '</small><small>'+escapeText(x.xgHome!=null&&x.xgAway!=null?
-      'Očekávané góly: '+x.xgHome.toFixed(2)+' : '+x.xgAway.toFixed(2):x.explanation)+
-      '</small></div><span class="model-pick">'+escapeText(x.pick)+'<small>'+pct(x.probability)+'</small></span></div>').join('');
-   const lines=t.rows.map(r=>'<tr><td>'+escapeText(r.description)+'</td><td>'+pct(r.probability)+'</td><td>'+
-      (r.odds===null?'–':r.odds.toFixed(2)+'×')+'</td></tr>').join('');
-   return '<article class="auto-ticket model-ticket'+(t.id===selectedModelTicketId?' model-ticket-primary':'')+'"><div class="ticket-head"><strong>'+
-    (t.id===selectedModelTicketId?'VYBRANÝ · ':'')+escapeText(t.label)+'</strong><span>'+
-    t.lineCount+' řádků</span></div>'+legs+'<div class="ticket-prob-row"><span>Šance alespoň jednoho správného řádku</span><strong>'+
-    pct(t.chanceAtLeastOne)+'</strong></div><p class="model-split">Modelový vklad: '+t.lineCount+' × '+
-    t.stakePerRow.toFixed(2)+' Kč = '+t.totalStake.toFixed(2)+' Kč</p><p class="ticket-caveat">'+
-    (t.hasPrices?'Odhad šance na čistý zisk: '+pct(t.chanceOfProfit)+' · odhadovaný čistý výsledek: '+t.expectedNet.toFixed(1)+' Kč.':
-      'Bez ověřených kurzů nelze znát čistý zisk ani výplatní kurz.')+
-    ' Alespoň jeden správný řádek nezaručuje výdělek.</p>'+
-    '<details class="match-diagnostics"><summary>Podrobný rozpis kombinací</summary><div style="overflow-x:auto"><table>'+
-    '<thead><tr><th>Řádek</th><th>Šance</th><th>Kurz</th></tr></thead><tbody>'+lines+
-    '</tbody></table></div></details>'+
-     '<button type="button" class="model-pick-option" data-model-ticket-index="'+index+'">'+
-     (t.id===selectedModelTicketId?'Vybráno':'Vybrat tento návrh')+'</button></article>';
+   const legs=t.legs.slice(0,5).map(renderLeg).join('')+
+    (t.legs.length>5?'<details class="match-diagnostics"><summary>Dalších '+
+     (t.legs.length-5)+' zápasů</summary>'+t.legs.slice(5).map((x,i)=>renderLeg(x,i+5)).join('')+
+    '</details>':'');
+   const lines=t.rows.map(r=>'<tr><td>'+escapeText(r.description)+'</td><td>'+
+    pct(r.probability)+'</td><td>'+(r.odds===null?'–':r.odds.toFixed(2)+'×')+'</td></tr>').join('');
+   return '<article class="auto-ticket model-ticket'+
+    (t.id===selectedModelTicketId?' model-ticket-primary':'')+'"><div class="ticket-head"><strong>'+
+    (t.id===selectedModelTicketId?'VYBRANÝ · ':'')+escapeText(t.label)+
+    '</strong><span>'+t.legCount+' zápasů · '+t.lineCount+' řádků</span></div>'+
+    legs+'<div class="ticket-prob-row"><span>Odhad šance na čistý zisk</span><strong>'+
+    pct(t.chanceOfProfit)+'</strong></div><p class="model-split">Modelový vklad: '+
+    t.lineCount+' × '+t.stakePerRow.toFixed(2)+' Kč = '+
+    t.totalStake.toFixed(2)+' Kč</p><p>Odhadovaný čistý výsledek: '+
+    (t.expectedNet>=0?'+':'')+t.expectedNet.toFixed(2)+' Kč v průměru na tiket '+
+    'podle neověřené kalibrace modelu.</p>'+
+    '<p class="ticket-caveat">Pravděpodobnost alespoň jednoho správného řádku: '+
+    pct(t.chanceAtLeastOne)+'. To není pravděpodobnost výdělku. '+
+    'Model neověřuje aktuální možnost podat tuto kombinaci u sázkovky.</p>'+
+    '<details class="match-diagnostics"><summary>Podrobný rozpis kombinací</summary>'+
+    '<div style="overflow-x:auto"><table><thead><tr><th>Řádek</th><th>Šance</th>'+
+    '<th>Kurz</th></tr></thead><tbody>'+lines+'</tbody></table></div></details>'+
+    '<button type="button" class="model-pick-option" data-model-ticket-index="'+index+'">'+
+    (t.id===selectedModelTicketId?'Vybráno':'Vybrat tento návrh')+
+    '</button></article>';
   }).join('');
- }catch(e){info.textContent='Chyba výpočtu: '+String(e.message||e);el.innerHTML='';}
+ }catch(e){
+  modelTicketOptions=[];
+  info.textContent='Chyba výpočtu: '+String(e.message||e);
+  el.innerHTML='';
+ }
 }
 
 function renderOdds(){
@@ -1086,7 +1131,16 @@ $('model-ticket-results').addEventListener('click',e=>{
   '. Můžeš ho uložit nanečisto nebo vytvořit další návrh.';
 });
 $('model-ticket-type').addEventListener('change',()=>{modelTicketType=$('model-ticket-type').value;selectedModelTicketId=null;modelTicketGenerateCount=0;renderModelTickets();});
-$('model-ticket-count').addEventListener('change',()=>{modelTicketMax=Number($('model-ticket-count').value)||3;selectedModelTicketId=null;modelTicketGenerateCount=0;renderModelTickets();});
+$('model-ticket-min').addEventListener('change',()=>{
+ modelTicketMin=Number($('model-ticket-min').value)||5;
+ if(modelTicketMin>modelTicketMax){modelTicketMax=modelTicketMin;$('model-ticket-count').value=String(modelTicketMax);}
+ selectedModelTicketId=null;modelTicketGenerateCount=0;renderModelTickets();
+});
+$('model-ticket-count').addEventListener('change',()=>{
+ modelTicketMax=Number($('model-ticket-count').value)||20;
+ if(modelTicketMax<modelTicketMin){modelTicketMin=modelTicketMax;$('model-ticket-min').value=String(modelTicketMin);}
+ selectedModelTicketId=null;modelTicketGenerateCount=0;renderModelTickets();
+});
 $('model-ticket-stake').addEventListener('change',()=>setTicketStake(Number($('model-ticket-stake').value)||20));
 $('odds-provider').value=oddsProvider;
 $('odds-provider').addEventListener('change',()=>changeOddsProvider($('odds-provider').value));
