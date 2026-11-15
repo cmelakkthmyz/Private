@@ -12,7 +12,7 @@ const makeDom=()=>{
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
-  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
+  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-min','model-ticket-count','model-ticket-refresh',
   'model-ticket-stake','model-ticket-generate','model-ticket-save','model-ticket-check',
   'background-monitor-toggle','background-monitor-run','background-monitor-status',
   'background-monitor-metrics','background-monitor-tickets','background-monitor-history',
@@ -520,4 +520,22 @@ test('returning from background refreshes native monitoring status',()=>{
  t.ctx.sportPredictorOnPause();
  t.ctx.sportPredictorOnResume();
  assert.ok(t.calls.filter(x=>x==='background-status').length>before);
+});
+
+
+test('5–20 match selector updates both limits and never fabricates value without current quotes',()=>{
+ const t=makeDom();
+ t.controls['model-ticket-min'].value='10';
+ t.controls['model-ticket-min'].listeners.change();
+ t.controls['model-ticket-count'].value='5';
+ t.controls['model-ticket-count'].listeners.change();
+ assert.equal(t.controls['model-ticket-min'].value,'5');
+ const a=event('Arsenal','Liverpool',t.upcoming);
+ const b={...event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+3600000).toISOString()),id:'m2'};
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:[a,b]},cz:{error:'No fixtures'},hockey:{error:'No fixtures'}
+ }));
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('Bez čerstvých API kurzů'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
+ assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
 });
