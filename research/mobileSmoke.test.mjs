@@ -384,9 +384,9 @@ test('without bookmaker odds the planner does not invent a profitable ticket',()
  const b={...event('Chelsea','Fulham',new Date(Date.parse(d)+3600000).toISOString()),id:'second'};
  const c={...event('Everton','Leeds United',new Date(Date.parse(d)+7200000).toISOString()),id:'third'};
  t.ctx.receiveMatches(JSON.stringify({events:[a,b,c]}),'pl');
- assert.ok(t.controls['model-ticket-status'].textContent.includes('3 budoucích zápasů'));
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('Zápasy: 3'));
  const html=t.controls['model-ticket-results'].innerHTML;
- assert.ok(html.includes('Žádný odpovídající tiket'),html);
+ assert.ok(html.includes('Teď nemám vhodný tiket'),html);
  assert.ok(html.includes('kurzy'),html);
  assert.ok(!html.includes('model-ticket-primary'),html);
 });
@@ -401,7 +401,7 @@ test('MAXIKOMBI never declares value from old no-odds predictions',()=>{
  t.controls['model-ticket-type'].value='maxikombi';
  t.controls['model-ticket-type'].listeners.change();
  const html=t.controls['model-ticket-results'].innerHTML;
- assert.ok(html.includes('Žádný odpovídající tiket'),html);
+ assert.ok(html.includes('Teď nemám vhodný tiket'),html);
  assert.ok(!html.includes('Modelový vklad'),html);
 });
 
@@ -490,7 +490,7 @@ test('one-click generation requests fixtures but never pretends missing quotes e
   pl:{events:[event('Arsenal','Liverpool',t.upcoming)]},
   cz:{error:'offline'},hockey:{error:'offline'}
  }));
- assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Teď nemám vhodný tiket'));
 });
 test('background monitor starts from native status without opening a WebView prediction page',()=>{
  const t=makeDom();
@@ -534,8 +534,8 @@ test('5–20 match selector updates both limits and never fabricates value witho
  t.ctx.receiveAllLeagues(JSON.stringify({
   pl:{events:[a,b]},cz:{error:'No fixtures'},hockey:{error:'No fixtures'}
  }));
- assert.ok(t.controls['model-ticket-status'].textContent.includes('Bez čerstvých API kurzů'));
- assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('Čerstvé API kurzy nejsou dostupné'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Teď nemám vhodný tiket'));
  assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
 });
 
