@@ -49,8 +49,8 @@ function rowsOf(type,n){
  if(type==='ako')return [whole];
  if(type==='kombi')return combinations(n,Math.max(2,n-1));
  if(type==='maxikombi'){
-  // This is an explicitly custom model system, not a bookmaker's MAXIKOMBI product.
-  // Never enumerate millions of rows for a twenty-match slip.
+  // Legacy two-to-four fixture mode kept for compatibility with older drafts.
+  // Five or more fixtures use real grouped MAXIKOMBI in buildTicket.
   const minimum=n<=4?2:Math.max(3,n-2);
   return Array.from({length:n-minimum+1},(_,i)=>combinations(n,minimum+i)).flat();
  }
@@ -93,20 +93,39 @@ function modelOutcome(legs,rows,stake){
   hasPrices,stakePerRow:perRow};
 }
 function buildTicket(type,legs,stake,minRowStake=0){
- const rows=rowsOf(type,legs.length);
+ let groups=null,calcLegs=legs,rows;
+ if(type==='maxikombi'&&legs.length>=5){
+  // Genuine MAXIKOMBI structure: each group of 2+ selections becomes
+  // one system opportunity. Group odds/probabilities multiply within it.
+  // 20 individual matches become four groups of five, not 2^20 bet lines.
+  const groupCount=Math.min(4,Math.max(2,Math.floor(legs.length/3)));
+  const buckets=Array.from({length:groupCount},()=>[]);
+  legs.forEach((_,i)=>buckets[i%groupCount].push(i));
+  groups=buckets.map((indexes,i)=>({
+   name:String.fromCharCode(65+i),indexes,
+   probability:indexes.reduce((p,j)=>p*legs[j].probability,1),
+   price:indexes.every(j=>legs[j].price!==null)?
+    indexes.reduce((p,j)=>p*legs[j].price,1):null
+  }));
+  calcLegs=groups;
+  // Model the selectable singles and accumulator combinations of groups.
+  // Users can reproduce these rows as a grouped Kombinátor/Maxikombi.
+  rows=Array.from({length:groupCount},(_,i)=>combinations(groupCount,i+1)).flat();
+ }else rows=rowsOf(type,legs.length);
  if(!rows.length||stake/rows.length<minRowStake)return null;
- const result=modelOutcome(legs,rows,stake);
+ const result=modelOutcome(calcLegs,rows,stake);
  const letter=i=>String.fromCharCode(65+i);
  const unitRows=rows.map(indexes=>({
   keys:indexes.map(letter),
   description:indexes.map(letter).join(' + '),
-  probability:indexes.reduce((p,i)=>p*legs[i].probability,1),
-  odds:result.hasPrices?indexes.reduce((p,i)=>p*legs[i].price,1):null,
-  potentialPayout:result.hasPrices?result.stakePerRow*indexes.reduce((p,i)=>p*legs[i].price,1):null
+  matchIndexes:groups?indexes.flatMap(i=>groups[i].indexes):indexes.slice(),
+  probability:indexes.reduce((p,i)=>p*calcLegs[i].probability,1),
+  odds:result.hasPrices?indexes.reduce((p,i)=>p*calcLegs[i].price,1):null,
+  potentialPayout:result.hasPrices?result.stakePerRow*indexes.reduce((p,i)=>p*calcLegs[i].price,1):null
  }));
  return {
   id:type+':'+legs.map(x=>x.id+':'+x.pick).join('|'),
-  type,legs,rows:unitRows,legCount:legs.length,lineCount:rows.length,
+  type,legs,groups,rows:unitRows,legCount:legs.length,lineCount:rows.length,
   stake,totalStake:stake,stakePerRow:result.stakePerRow,
   chanceAtLeastOne:result.chanceAtLeastOne,
   chanceOfProfit:result.chanceOfProfit,
@@ -114,9 +133,9 @@ function buildTicket(type,legs,stake,minRowStake=0){
   hasPrices:result.hasPrices,
   confidenceWarning:legs.some(x=>!x.modelVerified),
   label:type==='solo'?'SOLO':type==='ako'?'AKU '+legs.length:
-   type==='kombi'?'KOMBI '+(legs.length-1)+'/'+legs.length:'MAXIKOMBI '+legs.length,
-  // Without validated bookmaking prices, a multi-line system is not
-  // labelled better simply because it has many chances to win *something*.
+   type==='kombi'?'KOMBI '+(legs.length-1)+'/'+legs.length:
+   groups?'MAXIKOMBI '+legs.length+' ('+groups.length+' skupiny)':
+   'MAXIKOMBI '+legs.length,
   rankingScore:result.hasPrices?
     Math.tanh(result.expectedNet/stake)*.35+(result.chanceOfProfit??0)*.5+
     result.chanceAtLeastOne*.15-.002*(legs.length-1):
