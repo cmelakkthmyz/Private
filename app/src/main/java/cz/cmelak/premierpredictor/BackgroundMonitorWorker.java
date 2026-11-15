@@ -39,6 +39,7 @@ public final class BackgroundMonitorWorker extends Worker {
     private static final String PREFS="sport-predictor-background-v1";
     private static final String JOB="sport-predictor-six-hour-sync";
     private static final String ONE_SHOT="sport-predictor-manual-sync";
+    private static final Object RUN_LOCK=new Object();
     private static final ZoneId PRAGUE=ZoneId.of("Europe/Prague");
     public BackgroundMonitorWorker(@NonNull Context context,@NonNull WorkerParameters params){
         super(context,params);
@@ -49,7 +50,7 @@ public final class BackgroundMonitorWorker extends Worker {
     public static boolean enabled(Context c){return prefs(c).getBoolean("enabled",true);}
     public static void setEnabled(Context c,boolean active){
         prefs(c).edit().putBoolean("enabled",active).apply();
-        if(active)schedule(c);
+        if(active){schedule(c);checkNow(c);}
         else {
             WorkManager wm=WorkManager.getInstance(c);
             wm.cancelUniqueWork(JOB);wm.cancelUniqueWork(ONE_SHOT);
@@ -73,6 +74,11 @@ public final class BackgroundMonitorWorker extends Worker {
             BackgroundMonitorWorker.class).setConstraints(network()).build();
         WorkManager.getInstance(c).enqueueUniqueWork(ONE_SHOT,ExistingWorkPolicy.KEEP,work);
     }
+    public static void startIfNeeded(Context c){
+        if(!enabled(c))return;
+        long last=prefs(c).getLong("lastGoodFinishMs",0L);
+        if(last<=0||System.currentTimeMillis()-last>4L*3600000L)checkNow(c);
+    }
     public static synchronized JSONObject readLedger(Context c){
         try{
             JSONObject j=new JSONObject(prefs(c).getString("ledger",""));
@@ -86,7 +92,14 @@ public final class BackgroundMonitorWorker extends Worker {
     }
     public static JSONObject status(Context c) throws org.json.JSONException{
         JSONObject j=readLedger(c);
+        SharedPreferences p=prefs(c);
+        long started=p.getLong("runningSinceMs",0L);
+        boolean running=started>0&&System.currentTimeMillis()-started<25L*60000L;
         return BackgroundForecastEngine.summary(j).put("enabled",enabled(c))
+            .put("running",running)
+            .put("lastStartedAt",started>0?Instant.ofEpochMilli(started).toString():JSONObject.NULL)
+            .put("lastError",p.getString("lastError",""))
+            .put("lastCycleSuccessful",p.getInt("lastCycleSuccessful",0))
             .put("intervalHours",6)
             .put("note","Pravidelný běh na pozadí; Android může termín zpozdit kvůli baterii či síti. "
                 +"Odhady nejsou stejné jako tržní kurzy. Tipsport aréna nemá ověřený veřejný export.");
@@ -220,8 +233,24 @@ public final class BackgroundMonitorWorker extends Worker {
         try{target.put(key,value);}catch(org.json.JSONException ignored){}
     }
     @NonNull @Override public Result doWork(){
+        synchronized(RUN_LOCK){
+            if(!enabled(getApplicationContext()))return Result.success();
+            SharedPreferences state=prefs(getApplicationContext());
+            long now=System.currentTimeMillis();
+            // WorkManager may start periodic and one-time work simultaneously.
+            // Do not download the same feeds twice in rapid succession.
+            long good=state.getLong("lastGoodFinishMs",0L);
+            if(good>0&&now-good<90_000L)return Result.success();
+            state.edit().putLong("runningSinceMs",now).apply();
+            try{return performCycle(now,state);}
+            finally{
+                state.edit().putLong("runningSinceMs",0L)
+                    .putLong("lastFinishedMs",System.currentTimeMillis()).commit();
+            }
+        }
+    }
+    private Result performCycle(long now,SharedPreferences state){
         if(!enabled(getApplicationContext()))return Result.success();
-        long now=System.currentTimeMillis();
         JSONObject ledger=readLedger(getApplicationContext());
         int successful=0;
         for(String league:new String[]{"pl","cz","hockey"}){
@@ -252,6 +281,13 @@ public final class BackgroundMonitorWorker extends Worker {
         safePut(ledger,"lastRun",Instant.ofEpochMilli(now).toString());
         if(successful>0)safePut(ledger,"lastSuccess",Instant.ofEpochMilli(now).toString());
         store(getApplicationContext(),ledger);
+        String summary=successful==3?"":successful==0?
+            "Žádný sportovní zdroj se nepodařilo ověřit.":
+            "Část zdrojů není dostupná: "+(3-successful)+" ze 3.";
+        SharedPreferences.Editor status=state.edit().putInt("lastCycleSuccessful",successful)
+            .putString("lastError",summary);
+        if(successful>0)status.putLong("lastGoodFinishMs",System.currentTimeMillis());
+        status.apply();
         return successful>0?Result.success():Result.retry();
     }
 }
