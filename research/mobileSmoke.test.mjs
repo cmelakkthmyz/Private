@@ -610,3 +610,30 @@ test('one-tap fallback exposes model forecasts without pretending quotes exist',
  assert.ok(t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
  assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('Modelový očekávaný čistý výsledek'));
 });
+
+
+test('selecting a different displayed ticket does not reshuffle the generator',()=>{
+ const t=makeDom();
+ t.controls['model-ticket-mode'].value='forecast';
+ t.controls['model-ticket-mode'].listeners.change();
+ const teams=[
+  ['Arsenal','Liverpool'],['Chelsea','Fulham'],['Everton','Leeds United'],
+  ['Manchester City','Aston Villa'],['Newcastle','Brighton'],['Tottenham','West Ham'],
+  ['Crystal Palace','Brentford'],['Bournemouth','Wolves']
+ ];
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:teams.map(([h,a],i)=>({
+   ...event(h,a,new Date(Date.parse(t.upcoming)+3600000*i).toISOString()),id:'choice'+i
+  }))},cz:{error:'offline'},hockey:{error:'offline'}
+ }));
+ let html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('data-model-ticket-index="1"'),html);
+ t.controls['model-ticket-results'].listeners.click({
+  target:{closest(selector){
+   return selector==='[data-model-ticket-index]'?{dataset:{modelTicketIndex:'1'}}:null;
+  }}
+ });
+ html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('data-model-ticket-index="1" aria-pressed="true"'),html);
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vybrán tiket'));
+});
