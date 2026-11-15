@@ -23,7 +23,9 @@ export function storeTicketDraft(journal,ticket,{now=Date.now()}={}){
  });
  const fingerprint=ticket.type+'#'+legs.map(l=>l.matchId+':'+l.pick).join('#');
  if(journal.drafts.some(x=>x.fingerprint===fingerprint))return {saved:false,reason:'Tento návrh už je uložený.'};
- const rows=ticket.rows.map(r=>({keys:[...r.keys],probability:r.probability,odds:r.odds}));
+ const rows=ticket.rows.map(r=>({keys:[...r.keys],
+  matchIndexes:Array.isArray(r.matchIndexes)?r.matchIndexes.slice():r.keys.map(k=>k.charCodeAt(0)-65),
+  probability:r.probability,odds:r.odds}));
  const draft={fingerprint,createdAt:new Date(ms).toISOString(),type:ticket.type,label:ticket.label,
   stake:Number(ticket.totalStake),hasPrices:ticket.hasPrices,legs,rows,
   status:'pending',hitRows:null,settledAt:null,net:null};
@@ -63,13 +65,22 @@ export function settleJournal(journal,results,{now=Date.now()}={}){
    leg.score=r.homeScore+':'+r.awayScore;newLegs++;
   }
   if(draft.legs.every(l=>l.status!=='pending')){
-   draft.hitRows=draft.rows.filter(row=>row.keys.every(k=>draft.legs[k.charCodeAt(0)-65]?.status==='won')).length;
+   const indexes=row=>Array.isArray(row.matchIndexes)?
+    row.matchIndexes:row.keys.map(k=>k.charCodeAt(0)-65);
+   const isWinning=row=>indexes(row).every(i=>draft.legs[i]?.status==='won');
+   draft.hitRows=draft.rows.filter(isWinning).length;
    draft.status=draft.hitRows?'has-hit':'lost';
    draft.settledAt=at;
-   // Do not report fictitious monetary returns without actual recorded odds.
+   // A MAXIKOMBI row can contain a *group* of several original legs.
+   // Its quoted price is the product of all original legs in that row.
+   // Legacy stored rows without matchIndexes are still supported.
    draft.net=draft.hasPrices&&draft.legs.every(l=>validNumber(l.odds)&&l.odds>1)?
-     draft.rows.reduce((sum,row)=>row.keys.every(k=>draft.legs[k.charCodeAt(0)-65]?.status==='won')?
-      sum+draft.stake/draft.rows.length*row.keys.reduce((p,k)=>p*draft.legs[k.charCodeAt(0)-65].odds,1):sum,0)-draft.stake:null;
+    draft.rows.reduce((sum,row)=>{
+     if(!isWinning(row))return sum;
+     const price=validNumber(row.odds)&&row.odds>1?row.odds:
+      indexes(row).reduce((p,i)=>p*draft.legs[i].odds,1);
+     return sum+draft.stake/draft.rows.length*price;
+    },0)-draft.stake:null;
    newDrafts++;
   }
  }
