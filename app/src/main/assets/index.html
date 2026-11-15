@@ -43,7 +43,22 @@
  <h2 id="model-tickets-heading">AI návrhář tiketů</h2>
  <p>Automaticky hledá odhadovanou modelovou hodnotu v aktuálních kurzech, vybírá 5 až 20 různých zápasů a srovnává AKU, KOMBI a modelové MAXIKOMBI. Bez čerstvých kurzů označí nabídku za nedostupnou, nikoliv za výhodnou.</p>
  </div><span class="studio-chip">5–20 zápasů</span></div>
+ <div class="model-quick-title">Kolik zápasů chceš na tiketu?</div>
+ <div class="model-ticket-presets" role="group" aria-label="Rychlý výběr počtu zápasů">
+  <button type="button" id="model-preset-5" data-model-preset="5">5</button>
+  <button type="button" id="model-preset-10" data-model-preset="10">10</button>
+  <button type="button" id="model-preset-20" data-model-preset="20">20</button>
+  <button type="button" id="model-preset-range" data-model-preset="range" aria-pressed="true">5–20</button>
+ </div>
+ <details class="model-advanced-settings" id="model-ticket-settings">
+  <summary>Upravit typ tiketu, přesný rozsah a vklad</summary>
  <div class="model-ticket-controls">
+  <label>Režim výběru
+   <select id="model-ticket-mode">
+    <option value="value" selected>Hledat modelovou hodnotu – vyžaduje čerstvé kurzy</option>
+    <option value="forecast">Jen předpovědi – bez hodnocení výnosnosti</option>
+   </select>
+  </label>
   <label>Typ tiketu
    <select id="model-ticket-type">
     <option value="auto">Vybrat automaticky</option>
@@ -76,21 +91,23 @@
   </label>
   <label>Modelový vklad
    <select id="model-ticket-stake">
+    <option value="5">5 Kč</option>
     <option value="10">10 Kč</option>
     <option value="20" selected>20 Kč</option>
     <option value="50">50 Kč</option>
    </select>
   </label>
  </div>
+ </details>
  <div class="model-generate-actions">
-  <button id="model-ticket-generate" type="button" class="wide scan-button">Vygenerovat nový tiket</button>
-  <button id="model-ticket-save" type="button" class="wide">Uložit vybraný tiket nanečisto</button>
+  <button id="model-ticket-generate" type="button" class="wide scan-button">Vytvořit nový návrh</button>
+  <button id="model-ticket-save" type="button" class="wide">Uložit nanečisto</button>
  </div>
  <div class="model-recheck-actions">
  <button id="model-ticket-refresh" type="button" class="wide secondary">Aktualizovat zápasy</button>
  <button id="model-ticket-check" type="button" class="wide secondary">Ověřit výsledky tiketů</button>
  </div>
- <p id="model-ticket-action-status" class="source-notice" role="status" aria-live="polite">Vybírej od 5 do 20 zápasů. Aplikace nabídne pouze kandidáty s aktuálním kurzem a kladnou modelovou hodnotou.</p>
+ <p id="model-ticket-action-status" class="source-notice" role="status" aria-live="polite">Vyber počet zápasů a klikni na Generovat. Pro ekonomické hodnocení jsou potřeba čerstvé kurzy; bez nich můžeš zapnout režim „Jen předpovědi“.</p>
  <p id="model-ticket-status" class="odds-status" role="status" aria-live="polite">Načítám budoucí zápasy a sestavuji pravděpodobnosti…</p>
  <div id="model-ticket-results" aria-live="polite"></div>
  <section class="model-draft-history" aria-labelledby="model-draft-title">

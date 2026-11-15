@@ -128,3 +128,31 @@ test('explicit minimum 20 never returns a 5-leg ticket when few fixtures are ava
  });
  assert.equal(out.alternatives.length,0);
 });
+
+
+test('finds value in draw odds instead of blindly taking the favorite',()=>{
+ const offers=matches(6,true).map(m=>({
+  ...m,probabilities:{'1':.6,X:.25,'2':.15},
+  odds:{'1':1.73,X:5.0,'2':5.0}
+ }));
+ // Favorite yields +3.8% model edge, but the minimum is +5%.
+ // Draw yields +25%, and must be considered before discarding the game.
+ const out=buildModelTicketSuggestions(offers,{
+  now,stake:20,minMatches:5,maxMatches:5,requirePrices:true,minEdge:.05,minRowStake:1
+ });
+ assert.ok(out.alternatives.length);
+ const accumulator=out.alternatives.find(t=>t.type==='ako');
+ assert.ok(accumulator);
+ assert.ok(accumulator.legs.every(l=>l.pick==='X'));
+ assert.ok(accumulator.legs.every(l=>l.edge>=.05));
+});
+test('reroll diversifies the selected fixture set while keeping matches independent',()=>{
+ const fixtures=matches(18,true).map(m=>({...m,odds:{'1':2.2,X:3.8,'2':5}}));
+ const params={now,stake:20,minMatches:5,maxMatches:5,requirePrices:true,minEdge:.03};
+ const a=buildModelTicketSuggestions(fixtures,{...params,generationIndex:0}).recommended;
+ const b=buildModelTicketSuggestions(fixtures,{...params,generationIndex:3}).recommended;
+ assert.ok(a&&b);
+ assert.notEqual(a.id,b.id);
+ const set=new Set(b.legs.flatMap(l=>[l.home,l.away]));
+ assert.equal(set.size,b.legs.length*2);
+});
