@@ -588,3 +588,25 @@ test('multiple proposals display one large card with compact choices',()=>{
  assert.equal(html.split('<article class="auto-ticket model-ticket').length-1,1);
  assert.ok(html.includes('model-choice'),html);
 });
+
+
+test('one-tap fallback exposes model forecasts without pretending quotes exist',()=>{
+ const t=makeDom();
+ const d=t.upcoming;
+ const teams=[
+  ['Arsenal','Liverpool'],['Chelsea','Fulham'],['Everton','Leeds United'],
+  ['Manchester City','Aston Villa'],['Newcastle','Brighton']
+ ];
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:teams.map(([h,a],i)=>({
+   ...event(h,a,new Date(Date.parse(d)+3600000*i).toISOString()),id:'fallback'+i
+  }))},cz:{error:'offline'},hockey:{error:'offline'}
+ }));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('data-model-mode-fallback'));
+ t.controls['model-ticket-results'].listeners.click({
+  target:{closest(selector){return selector==='[data-model-mode-fallback]'?{}:null;}}
+ });
+ assert.equal(t.controls['model-ticket-mode'].value,'forecast');
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
+ assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('Modelový očekávaný čistý výsledek'));
+});
