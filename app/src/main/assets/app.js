@@ -1179,7 +1179,7 @@ $('model-ticket-results').addEventListener('click',e=>{
  if(!option)return;
  const ticket=modelTicketOptions[Number(option.dataset.modelTicketIndex)];
  if(!ticket)return;
- selectedModelTicketId=ticket.id;modelTicketGenerateCount++;
+ selectedModelTicketId=ticket.id;
  renderModelTickets();
  $('model-ticket-action-status').textContent='Vybrán tiket '+ticket.label+
   '. Můžeš ho uložit nanečisto nebo vytvořit další návrh.';
