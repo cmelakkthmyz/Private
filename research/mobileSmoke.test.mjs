@@ -12,7 +12,7 @@ const makeDom=()=>{
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
-  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-count','model-ticket-refresh',
+  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-min','model-ticket-count','model-ticket-refresh',
   'model-ticket-stake','model-ticket-generate','model-ticket-save','model-ticket-check',
   'background-monitor-toggle','background-monitor-run','background-monitor-status',
   'background-monitor-metrics','background-monitor-tickets','background-monitor-history',
@@ -376,88 +376,87 @@ test('Tipsport API uses different provider and does not mix with morning snapsho
  assert.equal(t.controls['odds-total'].textContent,'1');
 });
 
-test('model-first planner shows forecast probabilities and ticket draft without prices',()=>{
- const t=makeDom();
- const d=t.upcoming;
+
+test('without bookmaker odds the planner does not invent a profitable ticket',()=>{
+ const t=makeDom(),d=t.upcoming;
  const a=event('Arsenal','Liverpool',d);
  const b={...event('Chelsea','Fulham',new Date(Date.parse(d)+3600000).toISOString()),id:'second'};
  const c={...event('Everton','Leeds United',new Date(Date.parse(d)+7200000).toISOString()),id:'third'};
  t.ctx.receiveMatches(JSON.stringify({events:[a,b,c]}),'pl');
  assert.ok(t.controls['model-ticket-status'].textContent.includes('3 budoucích zápasů'));
  const html=t.controls['model-ticket-results'].innerHTML;
- assert.ok(html.includes('SOLO'),html);
- assert.ok(html.includes('AKU'),html);
- assert.ok(html.includes('KOMBI'),html);
- assert.ok(html.includes('MAXIKOMBI'),html);
- assert.ok(html.includes('Bez ověřených kurzů'),html);
- assert.ok(html.includes('1 ')&&html.includes('X ')&&html.includes('2 '),html);
+ assert.ok(html.includes('Žádný odpovídající tiket'),html);
+ assert.ok(html.includes('kurzy'),html);
+ assert.ok(!html.includes('model-ticket-primary'),html);
 });
-test('switching to MAXIKOMBI shows all rows while still requiring no odds API',()=>{
+
+test('MAXIKOMBI never declares value from old no-odds predictions',()=>{
  const t=makeDom(),date=t.upcoming;
- const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((names,i)=>{
+ const fixtures=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((names,i)=>{
   const [h,a]=names.split('|');
   return {...event(h,a,new Date(Date.parse(date)+i*3600000).toISOString()),id:'test'+i};
  });
- t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.ctx.receiveMatches(JSON.stringify({events:fixtures}),'pl');
  t.controls['model-ticket-type'].value='maxikombi';
  t.controls['model-ticket-type'].listeners.change();
  const html=t.controls['model-ticket-results'].innerHTML;
- assert.ok(html.includes('MAXIKOMBI 3'),html);
- assert.ok(html.includes('4 řádků'),html);
- assert.ok(html.includes('A + B')&&html.includes('A + C')&&html.includes('B + C'),html);
+ assert.ok(html.includes('Žádný odpovídající tiket'),html);
+ assert.ok(!html.includes('Modelový vklad'),html);
 });
 
-test('main model ticket stake selector updates every ticket line allocation',()=>{
- const t=makeDom(),d=t.upcoming;
- const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((names,i)=>{
-  const [home,away]=names.split('|');
-  return {...event(home,away,new Date(Date.parse(d)+i*3600000).toISOString()),id:'sim'+i};
- });
- t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
- t.controls['model-ticket-type'].value='maxikombi';
- t.controls['model-ticket-type'].listeners.change();
+test('model stake control updates its value without faking return when no odds exist',()=>{
+ const t=makeDom();
  t.controls['model-ticket-stake'].value='50';
  t.controls['model-ticket-stake'].listeners.change();
- const html=t.controls['model-ticket-results'].innerHTML;
- assert.ok(html.includes('4 × 12.50 Kč = 50.00 Kč'),html);
  assert.equal(t.controls['stake-50'].attributes['aria-pressed'],'true');
+ assert.equal(t.controls['model-ticket-stake'].value,'50');
+ assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
 });
 
-test('generate and save buttons create an actual immutable model-only ticket journal entry',()=>{
+test('generate and save refuse to persist an unpriced ticket as a valid selection',()=>{
  const t=makeDom(),d=t.upcoming;
- const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((s,i)=>{
-  const [h,a]=s.split('|');
-  return {...event(h,a,new Date(Date.parse(d)+i*3600000).toISOString()),id:'draft'+i};
- });
- t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
+ t.ctx.receiveMatches(JSON.stringify({events:[event('Arsenal','Liverpool',d)]}),'pl');
  t.controls['model-ticket-generate'].listeners.click();
- assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vygenerovaný návrh'));
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Nevznikl')||
+  t.controls['model-ticket-action-status'].textContent.includes('nevznikl'));
+ t.controls['model-ticket-save'].listeners.click();
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Nejdřív'));
+ assert.equal(t.saved.get('sport-predictor-model-journal-v1'),undefined);
+});
+
+test('priced 5-match forecast builds, displays and saves a genuine selected ticket',()=>{
+ const t=makeDom(),d=t.upcoming;
+ t.controls['odds-provider'].value='tipsport-api';
+ t.controls['odds-provider'].listeners.change();
+ const teams=[
+  ['Arsenal','Liverpool'],['Chelsea','Fulham'],['Everton','Leeds United'],
+  ['Manchester City','Aston Villa'],['Tottenham','West Ham'],['Newcastle','Brighton']
+ ];
+ const fixtures=teams.map(([home,away],i)=>({
+  ...event(home,away,new Date(Date.parse(d)+i*3600000).toISOString()),id:'match'+i
+ }));
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:fixtures},cz:{error:'No fixtures'},hockey:{error:'No fixtures'}
+ }));
+ const offers=fixtures.map((m,i)=>({
+  id:'offer'+i,league:'pl',home:teams[i][0],away:teams[i][1],kickoff:m.date,
+  odds:{'1':10,X:10,'2':10},bookmaker:'Tipsport',
+  fetchedAt:new Date().toISOString(),sourceUrl:'https://sazkyweb.cz/tipsport-kurzy-dnes.html'
+ }));
+ t.ctx.receiveOdds(JSON.stringify({
+  bookmaker:'Tipsport',offers,fetchedAt:new Date().toISOString()
+ }),'tipsport-api');
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('model-ticket-primary'),html);
+ assert.ok(html.includes('MAXIKOMBI')||html.includes('AKU'),html);
+ t.controls['model-ticket-generate'].listeners.click();
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Nový modelový návrh'));
  t.controls['model-ticket-save'].listeners.click();
  const store=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
  assert.equal(store.version,1);
  assert.equal(store.drafts.length,1);
- assert.equal(store.drafts[0].status,'pending');
- assert.ok(store.drafts[0].legs.length>0);
- assert.ok(t.controls['model-journal-summary'].textContent.includes('1 uložených'));
- t.controls['model-ticket-save'].listeners.click();
- assert.ok(t.controls['model-ticket-action-status'].textContent.includes('už je uložený'));
- const same=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
- assert.equal(same.drafts.length,1);
-});
-test('different generated options may be selected and saved separately',()=>{
- const t=makeDom(),d=t.upcoming;
- const matches=['Arsenal|Liverpool','Chelsea|Fulham','Everton|Leeds United'].map((s,i)=>{
-  const [h,a]=s.split('|');
-  return {...event(h,a,new Date(Date.parse(d)+i*3600000).toISOString()),id:'draft'+i};
- });
- t.ctx.receiveMatches(JSON.stringify({events:matches}),'pl');
- t.controls['model-ticket-generate'].listeners.click();
- t.controls['model-ticket-save'].listeners.click();
- t.controls['model-ticket-generate'].listeners.click();
- t.controls['model-ticket-save'].listeners.click();
- const store=JSON.parse(t.saved.get('sport-predictor-model-journal-v1'));
- assert.equal(store.drafts.length,2);
- assert.notEqual(store.drafts[0].fingerprint,store.drafts[1].fingerprint);
+ assert.ok(store.drafts[0].legs.length>=5);
+ assert.ok(store.drafts[0].rows.length>=1);
 });
 test('arena text import works without any bookmaker login and tracks future selections',()=>{
  const t=makeDom();
@@ -479,20 +478,19 @@ test('check saved-ticket results button refreshes official league results',()=>{
  assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Ověřuji'));
 });
 
-test('one-click generation loads fixtures automatically when nothing is cached',()=>{
+
+test('one-click generation requests fixtures but never pretends missing quotes exist',()=>{
  const t=makeDom();
  const before=t.calls.filter(x=>x==='all').length;
  t.controls['model-ticket-generate'].listeners.click();
  assert.ok(t.calls.filter(x=>x==='all').length>before);
- assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Hledám'));
+ assert.ok(t.controls['model-ticket-action-status'].textContent.includes('nevznikl'));
  t.ctx.receiveAllLeagues(JSON.stringify({
   pl:{events:[event('Arsenal','Liverpool',t.upcoming)]},
   cz:{error:'offline'},hockey:{error:'offline'}
  }));
- assert.ok(t.controls['model-ticket-action-status'].textContent.includes('Vygenerovaný návrh'));
- assert.ok(t.controls['model-ticket-results'].innerHTML.includes('SOLO'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
 });
-
 test('background monitor starts from native status without opening a WebView prediction page',()=>{
  const t=makeDom();
  assert.ok(t.calls.includes('background-status'));
@@ -520,4 +518,22 @@ test('returning from background refreshes native monitoring status',()=>{
  t.ctx.sportPredictorOnPause();
  t.ctx.sportPredictorOnResume();
  assert.ok(t.calls.filter(x=>x==='background-status').length>before);
+});
+
+
+test('5–20 match selector updates both limits and never fabricates value without current quotes',()=>{
+ const t=makeDom();
+ t.controls['model-ticket-min'].value='10';
+ t.controls['model-ticket-min'].listeners.change();
+ t.controls['model-ticket-count'].value='5';
+ t.controls['model-ticket-count'].listeners.change();
+ assert.equal(t.controls['model-ticket-min'].value,'5');
+ const a=event('Arsenal','Liverpool',t.upcoming);
+ const b={...event('Chelsea','Fulham',new Date(Date.parse(t.upcoming)+3600000).toISOString()),id:'m2'};
+ t.ctx.receiveAllLeagues(JSON.stringify({
+  pl:{events:[a,b]},cz:{error:'No fixtures'},hockey:{error:'No fixtures'}
+ }));
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('Bez čerstvých API kurzů'));
+ assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
+ assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
 });

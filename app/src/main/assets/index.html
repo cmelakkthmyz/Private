@@ -41,23 +41,37 @@
  <div class="eyebrow">HLAVNÍ FUNKCE · MODELOVÉ PREDIKCE</div>
  <div class="studio-head"><div>
  <h2 id="model-tickets-heading">AI návrhář tiketů</h2>
- <p>Podle formy, výsledků a dalších dostupných statistik vyhodnotí pravděpodobnosti 1 / X / 2. Sám porovná SOLO, AKU, KOMBI a MAXIKOMBI – i bez kurzů sázkovky.</p>
- </div><span class="studio-chip">1–4 zápasy</span></div>
+ <p>Automaticky hledá odhadovanou modelovou hodnotu v aktuálních kurzech, vybírá 5 až 20 různých zápasů a srovnává AKU, KOMBI a modelové MAXIKOMBI. Bez čerstvých kurzů označí nabídku za nedostupnou, nikoliv za výhodnou.</p>
+ </div><span class="studio-chip">5–20 zápasů</span></div>
  <div class="model-ticket-controls">
   <label>Typ tiketu
    <select id="model-ticket-type">
     <option value="auto">Vybrat automaticky</option>
-    <option value="solo">SOLO · 1 zápas</option>
     <option value="ako">AKU · všechny tipy musí vyjít</option>
     <option value="kombi">KOMBI · systém</option>
     <option value="maxikombi">MAXIKOMBI · rozšířený systém</option>
    </select>
   </label>
+  <label>Minimální počet zápasů
+   <select id="model-ticket-min">
+    <option value="2">2 zápasy</option>
+    <option value="3">3 zápasy</option>
+    <option value="5" selected>5 zápasů</option>
+    <option value="8">8 zápasů</option>
+    <option value="10">10 zápasů</option>
+    <option value="12">12 zápasů</option>
+    <option value="15">15 zápasů</option>
+    <option value="20">20 zápasů</option>
+   </select>
+  </label>
   <label>Maximální počet zápasů
    <select id="model-ticket-count">
-    <option value="2">2 zápasy</option>
-    <option value="3" selected>3 zápasy</option>
-    <option value="4">4 zápasy</option>
+    <option value="5">5 zápasů</option>
+    <option value="8">8 zápasů</option>
+    <option value="10">10 zápasů</option>
+    <option value="12">12 zápasů</option>
+    <option value="15">15 zápasů</option>
+    <option value="20" selected>20 zápasů</option>
    </select>
   </label>
   <label>Modelový vklad
@@ -76,7 +90,7 @@
  <button id="model-ticket-refresh" type="button" class="wide secondary">Aktualizovat zápasy</button>
  <button id="model-ticket-check" type="button" class="wide secondary">Ověřit výsledky tiketů</button>
  </div>
- <p id="model-ticket-action-status" class="source-notice" role="status" aria-live="polite">Vyber typ a počet zápasů. Klikni na Vygenerovat nový tiket.</p>
+ <p id="model-ticket-action-status" class="source-notice" role="status" aria-live="polite">Vybírej od 5 do 20 zápasů. Aplikace nabídne pouze kandidáty s aktuálním kurzem a kladnou modelovou hodnotou.</p>
  <p id="model-ticket-status" class="odds-status" role="status" aria-live="polite">Načítám budoucí zápasy a sestavuji pravděpodobnosti…</p>
  <div id="model-ticket-results" aria-live="polite"></div>
  <section class="model-draft-history" aria-labelledby="model-draft-title">
@@ -84,7 +98,7 @@
   <p id="model-journal-summary" class="source-notice">Zatím žádné uložené tikety.</p>
   <div id="model-journal-list" aria-live="polite"></div>
  </section>
- <p class="source-notice">Jde o modelové návrhy, nikoli automaticky vsazené tikety. Bez nezávisle ověřených kurzů se neuvádí finanční výhodnost ani smyšlená výplata. Hokejová remíza znamená stav po 60 minutách. MAXIKOMBI je vlastní modelový rozpis a může se lišit od pravidel konkrétní sázkové kanceláře.</p>
+ <p class="source-notice">Tikety se automaticky nepodávají. Kladná modelová hodnota není doložený skutečný zisk. Je vyžadován čerstvý předzápasový kurz, ale model ani API nezaručují přesnou cenu při podání. MAXIKOMBI je vlastní modelový systém, nikoliv oficiální produkt Chance. U hokeje znamená remíza stav po 60 minutách.</p>
 </section>
 <section id="arena-learning" class="ticket-studio arena-learning" aria-labelledby="arena-heading">
  <div class="eyebrow">ZDARMA · KOMUNITNÍ VÝSLEDKY</div>

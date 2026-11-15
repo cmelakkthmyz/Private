@@ -72,3 +72,22 @@ test('hockey outcome cannot be determined from overtime win instead of 60-minute
    {now:now+5*86400000}).newArena,1);
  assert.equal(arenaStats(j).wins,1);
 });
+
+
+test('grouped MAXIKOMBI settles every original leg in a group and pays only winning rows',()=>{
+ const j=emptyTicketJournal();
+ const grouped={
+  type:'maxikombi',label:'MAXIKOMBI 3 – regression',stake:30,totalStake:30,hasPrices:true,
+  legs:matches.map(l=>({...l,price:2.2})),
+  rows:[
+   {keys:['A'],matchIndexes:[0,1],probability:.35,odds:4.84},
+   {keys:['B'],matchIndexes:[2],probability:.59,odds:2.2},
+   {keys:['A','B'],matchIndexes:[0,1,2],probability:.205,odds:10.648}
+  ]
+ };
+ assert.equal(storeTicketDraft(j,grouped,{now}).saved,true);
+ settleJournal(j,[final(0,2,0),final(1,0,1),final(2,2,0)],{now:now+4*86400000});
+ assert.equal(j.drafts[0].status,'has-hit');
+ assert.equal(j.drafts[0].hitRows,1,'Only group B must win');
+ assert.ok(Math.abs(j.drafts[0].net-(-8))<1e-8,'10 Kč × 2.2 - 30 Kč');
+});
