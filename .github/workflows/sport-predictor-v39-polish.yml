@@ -1,7 +1,7 @@
 name: Sport Predictor AI 3.9 Polished Tickets 5–20 APK
 on:
   push:
-    branches: [sport-predictor-v39-polish-5to20]
+    branches: [sport-predictor-v39-polish]
     paths:
       - "app/**"
       - "research/**"
