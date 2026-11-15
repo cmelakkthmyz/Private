@@ -1,7 +1,7 @@
 name: Sport Predictor AI 3.8 Value Tickets 5–20 APK
 on:
   push:
-    branches: [sport-predictor-v38-value-background]
+    branches: [sport-predictor-v38-value-5to20]
     paths:
       - "app/**"
       - "research/**"
@@ -61,7 +61,7 @@ jobs:
       - name: Publish direct APK download in GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: sport-predictor-v3.8-reliable
+          tag_name: sport-predictor-v3.8-value-5to20
           name: Sport Predictor AI 3.8 – Value Tickets 5–20
           body: |
             Sport Predictor AI 3.8 – modelové tikety s 5 až 20 zápasy.
@@ -70,8 +70,8 @@ jobs:
             očekávanou hodnotu alespoň +3 % u každého vybraného tipu a neplýtvá
             malým vkladem na stovky mikrořádků. Výběr může poctivě vrátit žádný tiket.
             Nejde o prokázanou výnosnost ani o garantované kurzy při podání sázky.
-            AKU 5–20, omezené systémy KOMBI a vlastní modelové MAXIKOMBI.
-            Oficiální systém MAXIKOMBI u Chance může mít odlišná pravidla.
+            AKU 5–20, modelové KOMBI a skutečné seskupování příležitostí pro MAXIKOMBI.
+            Pravidla skupin vycházejí z herního plánu Chance, ale přijetí tiketu, specifická omezení a minimální vklad se vždy ověřují v aplikaci sázkové kanceláře.
             Není prováděno sázení, pouze ukládání simulací a ověřování výsledků.
             Nutná aktuální kurzová data z podporovaného API pro ekonomické hodnocení.
             Debug-signed; versionCode 38; intended as an upgrade to 3.7 if signed by
