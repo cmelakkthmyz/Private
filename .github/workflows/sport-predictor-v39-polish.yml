@@ -61,7 +61,7 @@ jobs:
       - name: Publish direct APK download in GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: sport-predictor-v3.9-value-5to20
+          tag_name: sport-predictor-v3.9-polish
           name: Sport Predictor AI 3.9 – Polished Tickets 5–20
           body: |
             Sport Predictor AI 3.9 — přehlednější výběr 5, 10, 20 nebo 5–20 zápasů.
