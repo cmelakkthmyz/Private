@@ -59,3 +59,73 @@ test('can compare systematic stake across all rows without treating one win as n
  assert.ok(Math.abs(sys.chanceAtLeastOne-.648)<1e-10);
  assert.ok(sys.chanceOfProfit<=sys.chanceAtLeastOne);
 });
+
+
+test('selects 5 to 20 matches without silently imposing the old four-match ceiling',()=>{
+ const data=matches(22,true).map(m=>({...m,odds:{'1':2.2,X:3.8,'2':5}}));
+ const out=buildModelTicketSuggestions(data,{
+  now,stake:20,minMatches:5,maxMatches:20,requirePrices:true,
+  minEdge:.03,minRowStake:1
+ });
+ assert.equal(out.fixturesEligible,22);
+ assert.equal(out.pricedMatches,22);
+ assert.ok(out.alternatives.length);
+ assert.ok(out.alternatives.every(t=>t.legCount>=5&&t.legCount<=20));
+ const twenty=out.alternatives.find(t=>t.type==='ako'&&t.legCount===20);
+ assert.ok(twenty,'A genuine 20-match accumulator should exist');
+ assert.equal(twenty.lineCount,1);
+ assert.equal(twenty.stakePerRow,20);
+ assert.ok(Math.abs(twenty.chanceAtLeastOne-Math.pow(.6,20))<1e-9);
+});
+test('twenty-fixture expanded systems are bounded and not offered with unusable micro stakes',()=>{
+ const fixtures=matches(20,true).map(m=>({...m,odds:{'1':2.2,X:3.8,'2':5}}));
+ const small=buildModelTicketSuggestions(fixtures,{
+  now,stake:20,minMatches:20,maxMatches:20,requirePrices:true,
+  minRowStake:1,minEdge:.03
+ });
+ assert.ok(small.alternatives.some(t=>t.type==='ako'&&t.legCount===20));
+ assert.ok(small.alternatives.some(t=>t.type==='kombi'&&t.legCount===20));
+ assert.equal(small.alternatives.some(t=>t.type==='maxikombi'&&t.legCount===20),false);
+ const large=buildModelTicketSuggestions(fixtures,{
+  now,stake:250,minMatches:20,maxMatches:20,requirePrices:true,
+  minRowStake:1,minEdge:.03
+ });
+ const system=large.alternatives.find(t=>t.type==='maxikombi'&&t.legCount===20);
+ assert.ok(system);
+ assert.equal(system.lineCount,211); // C(20,18)+C(20,19)+C(20,20)
+ assert.equal(system.rows.length,211);
+ assert.ok(system.chanceAtLeastOne<=1);
+ assert.ok(system.chanceOfProfit<=system.chanceAtLeastOne);
+});
+test('value filter rejects unpriced and negative-edge offers instead of inventing profits',()=>{
+ const noOdds=buildModelTicketSuggestions(matches(10),{
+  now,stake:20,minMatches:5,maxMatches:10,requirePrices:true,minEdge:.03
+ });
+ assert.deepEqual(noOdds.alternatives,[]);
+ assert.match(noOdds.reason,/kurzy/);
+ const tooLow=matches(10,true).map(m=>({...m,odds:{'1':1.5,X:3.8,'2':5}}));
+ const priced=buildModelTicketSuggestions(tooLow,{
+  now,stake:20,minMatches:5,maxMatches:10,requirePrices:true,minEdge:.03
+ });
+ assert.equal(priced.pricedMatches,10);
+ assert.equal(priced.valueMatches,0);
+ assert.equal(priced.alternatives.length,0);
+});
+test('generate again explores a different viable fixture set rather than cycling fixed cards',()=>{
+ const fixtureList=matches(12,true).map(m=>({...m,odds:{'1':2.2,X:3.8,'2':5}}));
+ const options={now,stake:20,minMatches:5,maxMatches:5,
+  requirePrices:true,minEdge:.03,minRowStake:1};
+ const a=buildModelTicketSuggestions(fixtureList,{...options,generationIndex:0});
+ const b=buildModelTicketSuggestions(fixtureList,{...options,generationIndex:1});
+ const ids=out=>new Set(out.alternatives.filter(t=>t.type==='ako').map(t=>t.id));
+ const x=ids(a),y=ids(b);
+ assert.ok(x.size>=2);
+ assert.ok(y.size>=2);
+ assert.ok([...y].some(id=>!x.has(id)), 'A new suggestion should contain a new match combination');
+});
+test('explicit minimum 20 never returns a 5-leg ticket when few fixtures are available',()=>{
+ const out=buildModelTicketSuggestions(matches(8,true),{
+  now,stake:20,minMatches:20,maxMatches:20,requirePrices:true,minEdge:.03
+ });
+ assert.equal(out.alternatives.length,0);
+});
