@@ -187,16 +187,18 @@ export function buildModelTicketSuggestions(fixtures,{
  }
  tickets.sort((a,b)=>b.rankingScore-a.rankingScore||
   b.chanceOfProfit-a.chanceOfProfit||a.legCount-b.legCount);
- // Retain the best ticket per family and enough distinct variants of each
- // family for the user to compare; don't return only one MAXIKOMBI forever.
+ // Preserve at least one ticket for every feasible leg count and family,
+ // including twenty matches, even when shorter slips rank higher.
  const kept=[],groups=new Set();
  for(const t of tickets){
-  if(groups.has(t.type))continue;
-  groups.add(t.type);kept.push(t);
+  const group=t.type+':'+t.legCount;
+  if(groups.has(group))continue;
+  groups.add(group);kept.push(t);
  }
+ const saved=new Set(kept.map(t=>t.id));
  for(const t of tickets){
-  if(kept.length>=100)break;
-  if(!kept.some(x=>x.id===t.id))kept.push(t);
+  if(kept.length>=240)break;
+  if(!saved.has(t.id)){kept.push(t);saved.add(t.id);}
  }
  kept.sort((a,b)=>b.rankingScore-a.rankingScore);
  const best=tickets[0]||null;
