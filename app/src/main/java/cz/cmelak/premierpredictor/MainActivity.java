@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        BackgroundMonitorWorker.startIfNeeded(this);
         if (webView != null) webView.evaluateJavascript(
             "window.refreshBackgroundMonitor&&window.refreshBackgroundMonitor();", null);
         if (webView != null) webView.evaluateJavascript(
@@ -56,6 +57,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(10, 19, 35));
         getWindow().setNavigationBarColor(Color.rgb(10, 19, 35));
         BackgroundMonitorWorker.schedule(this);
+        BackgroundMonitorWorker.startIfNeeded(this);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(10, 19, 35));
         WebSettings settings = webView.getSettings();
@@ -90,15 +92,15 @@ public final class MainActivity extends Activity {
 
     private final class Bridge {
         @JavascriptInterface public void backgroundStatus() {
-            executor.execute(() -> {
-                String payload;
-                try{payload=BackgroundMonitorWorker.status(MainActivity.this).toString();}
-                catch(Exception e){payload=new JSONObject().toString();}
-                final String result=payload;
-                runOnUiThread(() -> {
-                    if(webView!=null)webView.evaluateJavascript(
-                        "window.receiveBackgroundMonitorStatus("+JSONObject.quote(result)+");",null);
-                });
+            // This is a local SharedPreferences read. It must not sit behind
+            // long-running network operations on the fixture executor.
+            String payload;
+            try{payload=BackgroundMonitorWorker.status(MainActivity.this).toString();}
+            catch(Exception e){payload=new JSONObject().toString();}
+            final String result=payload;
+            runOnUiThread(() -> {
+                if(webView!=null)webView.evaluateJavascript(
+                    "window.receiveBackgroundMonitorStatus("+JSONObject.quote(result)+");",null);
             });
         }
         @JavascriptInterface public void backgroundCheckNow() {
