@@ -12,7 +12,8 @@ const makeDom=()=>{
   'manual-hint','home','away','home-strength','away-strength','home-power','away-power',
   'manual-result','calc','refresh','data-attribution',
   'odds-status','auto-refresh-status','odds-total','odds-matched','odds-updated',
-  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-min','model-ticket-count','model-ticket-refresh',
+  'model-ticket-results','model-ticket-status','model-ticket-type','model-ticket-mode','model-ticket-min','model-ticket-count','model-ticket-refresh',
+  'model-preset-5','model-preset-10','model-preset-20','model-preset-range',
   'model-ticket-stake','model-ticket-generate','model-ticket-save','model-ticket-check',
   'background-monitor-toggle','background-monitor-run','background-monitor-status',
   'background-monitor-metrics','background-monitor-tickets','background-monitor-history',
@@ -536,4 +537,54 @@ test('5–20 match selector updates both limits and never fabricates value witho
  assert.ok(t.controls['model-ticket-status'].textContent.includes('Bez čerstvých API kurzů'));
  assert.ok(t.controls['model-ticket-results'].innerHTML.includes('Žádný odpovídající tiket'));
  assert.ok(!t.controls['model-ticket-results'].innerHTML.includes('model-ticket-primary'));
+});
+
+
+test('quick presets allow exact 5, 10 or 20 fixtures and keep advanced selectors synced',()=>{
+ const t=makeDom();
+ for(const count of [5,10,20]){
+  t.controls['model-preset-'+count].listeners.click();
+  assert.equal(t.controls['model-ticket-min'].value,String(count));
+  assert.equal(t.controls['model-ticket-count'].value,String(count));
+  assert.equal(t.controls['model-preset-'+count].attributes['aria-pressed'],'true');
+ }
+ t.controls['model-preset-range'].listeners.click();
+ assert.equal(t.controls['model-ticket-min'].value,'5');
+ assert.equal(t.controls['model-ticket-count'].value,'20');
+ assert.equal(t.controls['model-preset-range'].attributes['aria-pressed'],'true');
+});
+test('forecast mode remains usable without quotes and never reports a bookmaker payout',()=>{
+ const t=makeDom();
+ t.controls['model-ticket-mode'].value='forecast';
+ t.controls['model-ticket-mode'].listeners.change();
+ const d=t.upcoming;
+ const events=[
+  ['Arsenal','Liverpool'],['Chelsea','Fulham'],['Everton','Leeds United'],
+  ['Manchester City','Aston Villa'],['Newcastle','Brighton'],['Tottenham','West Ham']
+ ].map(([h,a],i)=>({
+  ...event(h,a,new Date(Date.parse(d)+i*3600000).toISOString()),id:'forecast'+i
+ }));
+ t.ctx.receiveAllLeagues(JSON.stringify({pl:{events},cz:{error:'offline'},hockey:{error:'offline'}}));
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.ok(html.includes('model-ticket-primary'),html);
+ assert.ok(html.includes('Bez kurzů nelze'),html);
+ assert.ok(!html.includes('Modelový očekávaný čistý výsledek'),html);
+ assert.ok(t.controls['model-ticket-status'].textContent.includes('Jen předpovědi'));
+});
+test('multiple proposals display one large card with compact choices',()=>{
+ const t=makeDom();
+ t.controls['model-ticket-mode'].value='forecast';
+ t.controls['model-ticket-mode'].listeners.change();
+ const teams=[
+  ['Arsenal','Liverpool'],['Chelsea','Fulham'],['Everton','Leeds United'],
+  ['Manchester City','Aston Villa'],['Newcastle','Brighton'],['Tottenham','West Ham'],
+  ['Crystal Palace','Brentford'],['Bournemouth','Wolves']
+ ];
+ const events=teams.map(([h,a],i)=>({
+  ...event(h,a,new Date(Date.parse(t.upcoming)+i*3600000).toISOString()),id:'quick'+i
+ }));
+ t.ctx.receiveAllLeagues(JSON.stringify({pl:{events},cz:{error:'offline'},hockey:{error:'offline'}}));
+ const html=t.controls['model-ticket-results'].innerHTML;
+ assert.equal(html.split('<article class="auto-ticket model-ticket').length-1,1);
+ assert.ok(html.includes('model-choice'),html);
 });
