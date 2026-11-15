@@ -49,35 +49,42 @@ function rowsOf(type,n){
  if(type==='ako')return [whole];
  if(type==='kombi')return combinations(n,Math.max(2,n-1));
  if(type==='maxikombi'){
-  // A simple Maxikombi variant: all double rows plus the full accumulator
-  // for three picks, or doubles, trebles and fourfold for four picks.
-  return Array.from({length:n-1},(_,i)=>combinations(n,i+2)).flat();
+  // This is an explicitly custom model system, not a bookmaker's MAXIKOMBI product.
+  // Never enumerate millions of rows for a twenty-match slip.
+  const minimum=n<=4?2:Math.max(3,n-2);
+  return Array.from({length:n-minimum+1},(_,i)=>combinations(n,minimum+i)).flat();
  }
  return [];
 }
 function modelOutcome(legs,rows,stake){
- const total=Math.pow(2,legs.length);
- let chanceAtLeastOne=0,chanceOfProfit=0,expectedPayout=0;
+ const n=legs.length;
  const hasPrices=legs.every(x=>x.price!==null);
  const perRow=stake/rows.length;
- for(let mask=0;mask<total;mask++){
-  let scenario=1;
-  for(let i=0;i<legs.length;i++){
-   const correct=Boolean(mask&(1<<i));
-   scenario*=correct?legs[i].probability:1-legs[i].probability;
-  }
-  let winningRows=0,payout=0;
-  for(const row of rows){
-   if(row.every(i=>Boolean(mask&(1<<i)))){
-    winningRows++;
-    if(hasPrices)payout+=perRow*row.reduce((v,i)=>v*legs[i].price,1);
+ const minRowLength=Math.min(...rows.map(row=>row.length));
+ let chanceAtLeastOne=0,chanceOfProfit=0,expectedPayout=0;
+ // A row can win only when the total missed picks is at most n-minRowLength.
+ // For systems with 20 legs this means enumerating at most 211 failure sets,
+ // rather than 2^20 outcomes multiplied by all possible ticket lines.
+ for(let failedCount=0;failedCount<=n-minRowLength;failedCount++){
+  for(const failed of combinations(n,failedCount)){
+   const missed=new Set(failed);
+   let scenario=1;
+   for(let i=0;i<n;i++)scenario*=missed.has(i)?1-legs[i].probability:legs[i].probability;
+   if(scenario<=0)continue;
+   let winning=0,payout=0;
+   for(const row of rows){
+    if(row.some(index=>missed.has(index)))continue;
+    winning++;
+    if(hasPrices)payout+=perRow*row.reduce((v,index)=>v*legs[index].price,1);
    }
+   if(winning)chanceAtLeastOne+=scenario;
+   if(hasPrices&&payout>stake+1e-9)chanceOfProfit+=scenario;
   }
-  if(winningRows)chanceAtLeastOne+=scenario;
-  if(hasPrices){
-   expectedPayout+=scenario*payout;
-   if(payout>stake+1e-9)chanceOfProfit+=scenario;
-  }
+ }
+ if(hasPrices){
+  // Expectation by linearity: sum of (probability of row x its payout).
+  expectedPayout=rows.reduce((sum,row)=>sum+
+   perRow*row.reduce((p,i)=>p*legs[i].probability*legs[i].price,1),0);
  }
  return {chanceAtLeastOne:clamp(chanceAtLeastOne,0,1),
   chanceOfProfit:hasPrices?clamp(chanceOfProfit,0,1):null,
@@ -85,9 +92,9 @@ function modelOutcome(legs,rows,stake){
   expectedNet:hasPrices?expectedPayout-stake:null,
   hasPrices,stakePerRow:perRow};
 }
-function buildTicket(type,legs,stake){
+function buildTicket(type,legs,stake,minRowStake=0){
  const rows=rowsOf(type,legs.length);
- if(!rows.length)return null;
+ if(!rows.length||stake/rows.length<minRowStake)return null;
  const result=modelOutcome(legs,rows,stake);
  const letter=i=>String.fromCharCode(65+i);
  const unitRows=rows.map(indexes=>({
@@ -111,57 +118,103 @@ function buildTicket(type,legs,stake){
   // Without validated bookmaking prices, a multi-line system is not
   // labelled better simply because it has many chances to win *something*.
   rankingScore:result.hasPrices?
-    (result.expectedNet/stake)*.55+(result.chanceOfProfit??0)*.45-.025*(legs.length-1):
-    result.chanceAtLeastOne-.105*(legs.length-1)-.055*Math.log2(rows.length)
+    Math.tanh(result.expectedNet/stake)*.35+(result.chanceOfProfit??0)*.5+
+    result.chanceAtLeastOne*.15-.002*(legs.length-1):
+    result.chanceAtLeastOne-.045*(legs.length-1)-.03*Math.log2(rows.length)
  };
 }
-export function buildModelTicketSuggestions(fixtures,{now=Date.now(),stake=20,maxMatches=4}={}){
+// Min/max are inclusive. "Max" never means "exactly N" and never silently
+// overrides the chosen minimum. A reroll explores different independent fixtures.
+export function buildModelTicketSuggestions(fixtures,{
+ now=Date.now(),stake=20,minMatches=1,maxMatches=4,
+ requirePrices=false,minEdge=0,minRowStake=0,generationIndex=0
+}={}){
  const timestamp=toMillis(now);
  if(!Number.isFinite(timestamp))throw Error('Neplatný čas sestavení tiketů');
  const amount=Number(stake);
  if(!Number.isFinite(amount)||amount<=0)throw Error('Vklad musí být kladný');
+ const lower=clamp(Math.trunc(Number(minMatches)||1),1,20);
+ const upper=clamp(Math.trunc(Number(maxMatches)||4),1,20);
+ if(lower>upper)throw Error('Minimální počet zápasů převyšuje maximum');
  const available=(fixtures||[]).map(f=>validFixture(f,timestamp)).filter(Boolean);
  const seen=new Set();
- const ranked=available.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return true;})
-  .sort((a,b)=>(b.probability-a.probability)||(Date.parse(a.kickoff)-Date.parse(b.kickoff)))
-  .slice(0,18);
- const limit=clamp(Number(maxMatches)||4,1,4);
- const pool=ranked.slice(0,9);
+ const unique=available.filter(x=>{
+  const key=x.league+':'+x.id;
+  if(seen.has(key))return false;
+  seen.add(key);return true;
+ });
+ const withPrices=unique.filter(x=>x.price!==null);
+ // A quote alone is not value. Positive expected return is only a MODEL claim:
+ // no historical calibration / live bookmaker guarantee is implied.
+ const eligible=requirePrices?withPrices.filter(x=>
+  x.probability*x.price-1>=Number(minEdge||0)):unique;
+ const ranked=eligible.sort((a,b)=>{
+  const score=x=>requirePrices?
+   (x.probability*x.price-1)*.8+x.probability*.2:
+   x.probability;
+  return score(b)-score(a)||Date.parse(a.kickoff)-Date.parse(b.kickoff);
+ }).slice(0,40);
+ const pool=ranked.slice(0,Math.min(40,Math.max(24,upper+8)));
  const tickets=[];
- function append(type,legs){
-  if(legs.some((v,i)=>legs.slice(0,i).some(w=>!independent(v,w))))return;
-  const t=buildTicket(type,legs,amount);
-  if(t)tickets.push(t);
+ const made=new Set();
+ const reroll=clamp(Math.trunc(Number(generationIndex)||0),0,100000);
+ function chooseLegs(k,variant){
+  if(k>pool.length)return null;
+  // Rotate one of the stronger fixtures out for the next real candidate.
+  // Unlike the old button, subsequent generations can change the match set.
+  const excluded=variant===0&&reroll===0?-1:(k-1-((variant+reroll-1)%k));
+  const picked=[];
+  for(let i=0;i<pool.length&&picked.length<k;i++){
+   if(i===excluded)continue;
+   const candidate=pool[i];
+   if(picked.every(existing=>independent(existing,candidate)))picked.push(candidate);
+  }
+  return picked.length===k?picked:null;
  }
- for(const f of pool)append('solo',[f]);
- for(let k=2;k<=limit;k++){
-  for(const idxs of combinations(pool.length,k)){
-   const legs=idxs.map(i=>pool[i]);
+ function append(type,legs){
+  if(type==='solo'&&legs.length!==1)return;
+  const t=buildTicket(type,legs,amount,Number(minRowStake)||0);
+  if(t&&!made.has(t.id)){made.add(t.id);tickets.push(t);}
+ }
+ if(lower===1&&pool.length)append('solo',[pool[Math.min(reroll%pool.length,pool.length-1)]]);
+ for(let k=Math.max(2,lower);k<=Math.min(upper,pool.length);k++){
+  for(let variant=0;variant<Math.min(4,pool.length-k+1);variant++){
+   const legs=chooseLegs(k,variant);
+   if(!legs)continue;
    append('ako',legs);
    if(k>=3){append('kombi',legs);append('maxikombi',legs);}
   }
  }
  tickets.sort((a,b)=>b.rankingScore-a.rankingScore||
-   a.legCount-b.legCount||b.chanceAtLeastOne-a.chanceAtLeastOne);
- // At least one option for each ticket family is shown, alongside top-rated
- // options; this is a comparison, not a guarantee of positive returns.
+  b.chanceOfProfit-a.chanceOfProfit||a.legCount-b.legCount);
+ // Retain the best ticket per family and enough distinct variants of each
+ // family for the user to compare; don't return only one MAXIKOMBI forever.
  const kept=[],groups=new Set();
  for(const t of tickets){
   if(groups.has(t.type))continue;
   groups.add(t.type);kept.push(t);
  }
  for(const t of tickets){
-  if(kept.length>=10)break;
+  if(kept.length>=100)break;
   if(!kept.some(x=>x.id===t.id))kept.push(t);
  }
  kept.sort((a,b)=>b.rankingScore-a.rankingScore);
  const best=tickets[0]||null;
+ const whyNoTickets=requirePrices?
+  withPrices.length===0?'Chybí čerstvé ověřitelné kurzy. Bez nich nelze určit výhodný tiket.':
+  eligible.length<lower?'Pouze '+eligible.length+' z '+withPrices.length+
+   ' zápasů s kurzem splňuje požadovanou modelovou hodnotu; minimum je '+lower+'.':
+  'Nelze sestavit '+lower+' až '+upper+
+   ' nezávislých tipů v rámci rozpočtu a počtu řádků.':
+  'Není dost budoucích nezávislých zápasů pro zadaný rozsah.';
  return {
   fixturesRead:(fixtures||[]).length,fixturesEligible:available.length,
-  matchesConsidered:ranked.length,hasMarketPrices:Boolean(best?.hasPrices),
-  recommended:best,alternatives:kept,
-  basis:best?.hasPrices?'modelové očekávané výnosy a pravděpodobnost čistého zisku':
-   'pravděpodobnosti předpovědí a penalizace počtu řádků; finanční výhodnost bez ověřených kurzů neznáme',
-  caveat:'Odhady mohou být špatně kalibrované. U systémového tiketu alespoň jeden výherní řádek nezaručuje čistý zisk.'
+  matchesConsidered:ranked.length,pricedMatches:withPrices.length,
+  valueMatches:eligible.length,hasMarketPrices:Boolean(best?.hasPrices),
+  recommended:best,alternatives:kept,reason:best?null:whyNoTickets,
+  basis:requirePrices?
+   'předběžná modelová hodnota podle dostupných kurzů, bez záruky zisku a bez ověření kalibrace modelu':
+   'pravděpodobnosti předpovědí; finanční výhodnost bez kurzů neznáme',
+  caveat:'Modelový kladný očekávaný výnos není důkaz skutečné výhodnosti. Odhady a kurzy se mohou měnit. Zisk nelze zaručit.'
  };
 }
