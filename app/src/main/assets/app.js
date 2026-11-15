@@ -571,7 +571,7 @@ function renderModelTickets(){
   const data=MODEL_TICKETS.buildModelTicketSuggestions(fixtures,{
    stake:ticketStake,minMatches:modelTicketMin,maxMatches:modelTicketMax,
    generationIndex:modelTicketGenerateCount,requirePrices:valueMode,
-   minEdge:valueMode?.03:0,minRowStake:valueMode?1:0
+   minEdge:valueMode ? 0.03 : 0,minRowStake:valueMode?1:0
   });
   const matchesType=t=>modelTicketType==='auto'||t.type===modelTicketType;
   const all=data.alternatives.filter(matchesType);
@@ -608,7 +608,8 @@ function renderModelTickets(){
    el.innerHTML='<div class="no-edges"><strong>Teď nemám vhodný tiket.</strong><p>'+
     escapeText(data.reason||'Pro vybraný typ a rozsah nevychází použitelná kombinace.')+
     '</p>'+(valueMode?
-     '<p>Pro modelové návrhy bez kurzů otevři „Upravit typ tiketu, přesný rozsah a vklad“ a vyber „Jen předpovědi“.</p>'+
+     '<button type="button" class="model-forecast-fallback" data-model-mode-fallback="forecast">'+
+     'Zobrazit předpovědi bez kurzů</button>'+
      '<p><a href="#auto-tickets">Nastavit zdroj kurzů</a></p>':
      '<p>Zkus menší počet zápasů nebo aktualizuj program.</p>')+
     '</div>';
@@ -1164,6 +1165,16 @@ $('model-ticket-check').addEventListener('click',()=>{
 });
 $('arena-tips-import').addEventListener('click',importArenaFromText);
 $('model-ticket-results').addEventListener('click',e=>{
+ const fallback=e.target?.closest?.('[data-model-mode-fallback]');
+ if(fallback){
+  modelTicketMode='forecast';
+  $('model-ticket-mode').value='forecast';
+  selectedModelTicketId=null;modelTicketGenerateCount=0;
+  renderModelTickets();
+  $('model-ticket-action-status').textContent=
+   'Zobrazuji pouze predikce. Bez kurzů neuvádím zisk ani výhodnost.';
+  return;
+ }
  const option=e.target?.closest?.('[data-model-ticket-index]');
  if(!option)return;
  const ticket=modelTicketOptions[Number(option.dataset.modelTicketIndex)];
