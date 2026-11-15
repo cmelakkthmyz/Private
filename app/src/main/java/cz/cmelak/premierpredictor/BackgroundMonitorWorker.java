@@ -169,33 +169,24 @@ public final class BackgroundMonitorWorker extends Worker {
         }
     }
     private static JSONObject hockey() throws Exception{
-        String root="https://raw.githubusercontent.com/LiborP75/lp75-open-data/main/sazkyweb/";
-        JSONObject daily=new JSONObject(json(root+"dnes.json",1_000_000));
-        JSONObject standing=new JSONObject(json(root+"extraliga-tabulka.json",1_000_000));
-        LocalDate today=LocalDate.now(PRAGUE);
-        String date=daily.optString("datum","");
-        JSONArray events=new JSONArray();
-        if(today.toString().equals(date)){
-            JSONArray matches=daily.optJSONArray("zapasy");
-            for(int i=0;matches!=null&&i<matches.length();i++){
-                JSONObject g=matches.optJSONObject(i);
-                if(g==null)continue;
-                String comp=g.optString("soutez","").toLowerCase(Locale.ROOT);
-                if(!comp.contains("extraliga")||comp.contains("slovensk"))continue;
-                String home=g.optString("domaci",""),away=g.optString("hoste","");
-                if(home.isEmpty()||away.isEmpty())continue;
-                try{
-                    String time=today.atTime(LocalTime.parse(g.optString("cas","")))
-                            .atZone(PRAGUE).toInstant().toString();
-                    events.put(new JSONObject().put("id",date+"_"+i).put("date",time)
-                        .put("home",home).put("away",away));
-                }catch(Exception ignored){}
+        // Prefer the publisher's website. The static GitHub mirror is a
+        // fallback, but can lag for days; both are checked for freshness.
+        String[] bases={
+            "https://sazkyweb.cz/data/",
+            "https://raw.githubusercontent.com/LiborP75/lp75-open-data/main/sazkyweb/"
+        };
+        String lastFailure="není dostupný";
+        for(String base:bases){
+            try{
+                String daily=json(base+"dnes.json",1_000_000);
+                String standing=json(base+"extraliga-tabulka.json",1_000_000);
+                JSONObject verified=HockeyDailyFeed.parse(daily,standing,System.currentTimeMillis());
+                return verified.put("feedUrl",base);
+            }catch(Exception e){
+                lastFailure=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();
             }
         }
-        JSONArray table=standing.optJSONArray("tabulka");
-        if(table==null)throw new IllegalStateException("Tabulka extraligy nedostupná");
-        return new JSONObject().put("scheduleCurrent",today.toString().equals(date))
-            .put("events",events).put("standings",table).put("source","SazkyWeb.cz CC BY 4.0");
+        throw new IllegalStateException("Ověřený čerstvý program hokeje není dostupný: "+lastFailure);
     }
     private static int hockeyFinals(JSONObject ledger,long now){
         JSONArray records=ledger.optJSONArray("records");
