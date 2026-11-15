@@ -594,8 +594,9 @@ function renderModelTickets(){
    escapeText(recommended.label)+'</strong><p>Jde o modelový odhad, nikoli ověřenou dlouhodobou výhodu. '+
    'Všechny tipy musí být před sázkou porovnány s aktuální nabídkou kanceláře. '+
    'Počet řádků a minimální vklad u sázkovky mohou být jiné.</p></div>';
-  const renderLeg=(x,i)=>'<div class="model-leg"><strong class="model-letter">'+
-   String.fromCharCode(65+(i%26))+'</strong><div><strong>'+escapeText(x.home)+' – '+
+  const renderLeg=(x,i,groups)=>'<div class="model-leg"><strong class="model-letter">'+
+   escapeText(groups?.find(g=>g.indexes.includes(i))?.name||String.fromCharCode(65+(i%26)))+
+   '</strong><div><strong>'+escapeText(x.home)+' – '+
    escapeText(x.away)+'</strong><small>'+escapeText(LEAGUES[x.league]?.title||x.league)+
    ' · '+new Date(x.kickoff).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+
    '</small><small>Tip: '+escapeText(x.pick)+' · Kurz: '+
@@ -604,17 +605,21 @@ function renderModelTickets(){
    ' %</small></div><span class="model-pick">'+escapeText(x.pick)+
    '<small>'+pct(x.probability)+'</small></span></div>';
   el.innerHTML=summary+options.map((t,index)=>{
-   const legs=t.legs.slice(0,5).map(renderLeg).join('')+
+   const legs=t.legs.slice(0,5).map((x,i)=>renderLeg(x,i,t.groups)).join('')+
     (t.legs.length>5?'<details class="match-diagnostics"><summary>Dalších '+
-     (t.legs.length-5)+' zápasů</summary>'+t.legs.slice(5).map((x,i)=>renderLeg(x,i+5)).join('')+
+     (t.legs.length-5)+' zápasů</summary>'+t.legs.slice(5).map((x,i)=>renderLeg(x,i+5,t.groups)).join('')+
     '</details>':'');
+   const groupNote=t.groups?'<p class="ticket-caveat"><strong>Skupiny MAXIKOMBI: </strong>'+
+    t.groups.map(g=>escapeText(g.name)+' = '+g.indexes.length+' tipů, kurz '+
+     (g.price===null?'–':g.price.toFixed(2)+'×')).join(' · ')+
+    '. Každá skupina vyjde jen tehdy, pokud vyjdou všechny její zápasy.</p>':'';
    const lines=t.rows.map(r=>'<tr><td>'+escapeText(r.description)+'</td><td>'+
     pct(r.probability)+'</td><td>'+(r.odds===null?'–':r.odds.toFixed(2)+'×')+'</td></tr>').join('');
    return '<article class="auto-ticket model-ticket'+
     (t.id===selectedModelTicketId?' model-ticket-primary':'')+'"><div class="ticket-head"><strong>'+
     (t.id===selectedModelTicketId?'VYBRANÝ · ':'')+escapeText(t.label)+
     '</strong><span>'+t.legCount+' zápasů · '+t.lineCount+' řádků</span></div>'+
-    legs+'<div class="ticket-prob-row"><span>Odhad šance na čistý zisk</span><strong>'+
+    legs+groupNote+'<div class="ticket-prob-row"><span>Odhad šance na čistý zisk</span><strong>'+
     pct(t.chanceOfProfit)+'</strong></div><p class="model-split">Modelový vklad: '+
     t.lineCount+' × '+t.stakePerRow.toFixed(2)+' Kč = '+
     t.totalStake.toFixed(2)+' Kč</p><p>Odhadovaný čistý výsledek: '+
