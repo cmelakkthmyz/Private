@@ -257,6 +257,11 @@ public final class BackgroundMonitorWorker extends Worker {
             if(isStopped())break;
             try{
                 JSONObject data="pl".equals(league)?pl():"cz".equals(league)?cz():hockey();
+                if(!"hockey".equals(league)){
+                    JSONArray events=data.optJSONArray("events");
+                    if(events==null||events.length()==0)
+                        throw new IllegalStateException("Zdroj nevrátil žádné ověřitelné zápasy");
+                }
                 BackgroundForecastEngine.ingest(ledger,league,data,now);
                 successful++;
                 store(getApplicationContext(),ledger);
