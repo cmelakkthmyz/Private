@@ -3,7 +3,7 @@
 const PICKS=['1','X','2'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const toMillis=x=>typeof x==='number'?x:Date.parse(x);
-function validFixture(m,now){
+function validFixture(m,now,{requirePrices=false,minEdge=0}={}){
  if(!m||!['pl','cz','hockey'].includes(m.league)||!m.home||!m.away)return null;
  const kickoff=toMillis(m.kickoff);
  if(!Number.isFinite(kickoff)||kickoff<=now+60_000||kickoff>now+14*86400000)return null;
@@ -22,7 +22,7 @@ function validFixture(m,now){
   // Edge matters most, but a very improbable longshot is penalized.
   score:(p[pick]*odds[pick]-1)*.65+p[pick]*.35
  })).sort((a,b)=>b.score-a.score):[];
- const bestValue=valueMarkets.filter(m=>m.edge>0).at(0);
+ const bestValue=valueMarkets.filter(m=>m.edge>=(requirePrices?Number(minEdge)||0:0)).at(0);
  const pick=bestValue?.pick||favorite;
  return {
   id:String(m.id||m.league+'_'+m.home+'_'+m.away+'_'+kickoff),
@@ -165,7 +165,7 @@ export function buildModelTicketSuggestions(fixtures,{
  const lower=clamp(Math.trunc(Number(minMatches)||1),1,20);
  const upper=clamp(Math.trunc(Number(maxMatches)||4),1,20);
  if(lower>upper)throw Error('Minimální počet zápasů převyšuje maximum');
- const available=(fixtures||[]).map(f=>validFixture(f,timestamp)).filter(Boolean);
+ const available=(fixtures||[]).map(f=>validFixture(f,timestamp,{requirePrices,minEdge})).filter(Boolean);
  const seen=new Set();
  const unique=available.filter(x=>{
   const key=x.league+':'+x.id;
