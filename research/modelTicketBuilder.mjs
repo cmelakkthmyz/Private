@@ -162,7 +162,7 @@ export function buildModelTicketSuggestions(fixtures,{
   if(k>pool.length)return null;
   // Rotate one of the stronger fixtures out for the next real candidate.
   // Unlike the old button, subsequent generations can change the match set.
-  const excluded=variant===0&&reroll===0?-1:(k-1-((variant+reroll-1)%k));
+  const excluded=pool.length===k||variant===0&&reroll===0?-1:(k-1-((variant+reroll-1)%k));
   const picked=[];
   for(let i=0;i<pool.length&&picked.length<k;i++){
    if(i===excluded)continue;
