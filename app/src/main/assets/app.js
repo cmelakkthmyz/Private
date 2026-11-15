@@ -428,10 +428,13 @@ function nativeDate(raw){
 function renderBackgroundMonitor(){
  const d=backgroundMonitorState;if(!d)return;
  $('background-monitor-toggle').textContent=d.enabled?'Pozastavit automatiku':'Zapnout automatiku';
- $('background-monitor-status').textContent=(d.enabled?'Automatika zapnutá':'Automatika vypnutá')+
-  ' · poslední pokus: '+(d.lastRun&&d.lastRun!=='null'?nativeDate(d.lastRun):'zatím žádný')+
-  ' · poslední úspěšná kontrola: '+(d.lastSuccess&&d.lastSuccess!=='null'?nativeDate(d.lastSuccess):'zatím žádná')+
-  ' · plánováno přibližně každých '+d.intervalHours+' hodin podle možností Androidu.';
+ $('background-monitor-status').textContent=
+  (d.enabled?(d.running?'Právě se kontrolují zápasy…':'Automatika zapnutá'):'Automatika vypnutá')+
+  ' · poslední kontrola: '+(d.lastRun?nativeDate(d.lastRun):'zatím žádná')+
+  ' · poslední úspěšná: '+(d.lastSuccess?nativeDate(d.lastSuccess):'zatím žádná')+
+  (d.lastRun?' · dostupné zdroje '+Number(d.lastCycleSuccessful||0)+'/3':'')+
+  (d.lastError?' · Upozornění: '+String(d.lastError):'')+
+  ' · interval přibližně '+d.intervalHours+' hodin podle Androidu.';
  $('background-monitor-metrics').innerHTML=
   '<div><span>Čeká na výsledek</span><strong>'+Number(d.pending||0)+'</strong></div>'+
   '<div><span>Vyhodnocené předpovědi</span><strong>'+Number(d.settled||0)+'</strong></div>'+
@@ -1150,8 +1153,12 @@ if(typeof document.addEventListener==='function')
   else globalThis.sportPredictorOnResume();
  });
 if(typeof setInterval==='function'){
- setInterval(()=>{autoScan();updateAutoStatus();},15_000);
- setInterval(()=>globalThis.refreshBackgroundMonitor(),300_000);
+ setInterval(()=>{
+  autoScan();updateAutoStatus();
+  // Local status only: no network transfer, so a completed worker becomes visible
+  // without requiring another tap or reopening the app.
+  if(autoForeground)globalThis.refreshBackgroundMonitor();
+ },15_000);
 }
 updateAutoStatus();
 })();
